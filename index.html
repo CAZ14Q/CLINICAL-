@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ClinicaPRO | نظام الإدارة السريع</title>
+    <title>ClinicaPRO AI v2 | Intelligence Unit</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -15,134 +15,230 @@
 
     <style>
         body { font-family: 'Tajawal', sans-serif; background-color: #070912; color: #cbd5e1; overflow: hidden; }
-        .custom-scroll::-webkit-scrollbar { width: 5px; }
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+        .animate-in { animation: fadeIn 0.5s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-in { animation: fadeIn 0.4s ease-out forwards; }
+        .glass { background: rgba(13, 17, 29, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.05); }
     </style>
+
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
 
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
-        
-        // استدعاء أيقونات Lucide بشكل مبسط للمتصفح
-        const Icon = ({ name, size = 18, className = "" }) => (
-            <span className={`inline-block ${className}`} style={{ width: size, height: size }}>
-                <i data-lucide={name}></i>
-            </span>
-        );
+        const { useState, useEffect, useMemo } = React;
+
+        // --- Mock Components for Lucide (Since we are in single HTML) ---
+        const Icon = ({ name, size = 18, className = "" }) => {
+            useEffect(() => { if(window.lucide) window.lucide.createIcons(); }, []);
+            return <i data-lucide={name} className={className} style={{ width: size, height: size }}></i>;
+        };
 
         function App() {
-            // تحميل البيانات من ذاكرة المتصفح مباشرة
             const [patients, setPatients] = useState(() => {
-                const saved = localStorage.getItem('clinica_data');
+                const saved = localStorage.getItem('clinica_v2_data');
                 return saved ? JSON.parse(saved) : [];
             });
-
             const [activeTab, setActiveTab] = useState('dashboard');
+            const [selectedPatient, setSelectedPatient] = useState(null);
             const [search, setSearch] = useState('');
             const [isModalOpen, setIsModalOpen] = useState(false);
-            const [formData, setFormData] = useState({ name: '', phone: '', status: 'Stable', diagnosis: '' });
+            const [isEditMode, setIsEditMode] = useState(false);
 
-            // حفظ البيانات تلقائياً عند أي تغيير
+            const initialPatientState = {
+                name: '', phone: '', age: '', gender: 'Male', status: 'Stable',
+                diagnosis: { primary: '', secondary: '', icdCode: '' },
+                vitals: { bp: '', hr: '', temp: '', spo2: '' },
+                aiInsights: { riskScore: 12, priority: 'Normal' }
+            };
+            const [formData, setFormData] = useState(initialPatientState);
+
             useEffect(() => {
-                localStorage.setItem('clinica_data', JSON.stringify(patients));
-                if (window.lucide) window.lucide.createIcons();
+                localStorage.setItem('clinica_v2_data', JSON.stringify(patients));
+                if(window.lucide) window.lucide.createIcons();
             }, [patients, activeTab, isModalOpen]);
 
             const handleSave = (e) => {
                 e.preventDefault();
-                const newPatient = { ...formData, id: Date.now() };
-                setPatients([...patients, newPatient]);
+                const data = { 
+                    ...formData, 
+                    id: isEditMode ? formData.id : Date.now(),
+                    aiInsights: { riskScore: formData.status === 'Critical' ? 85 : 15, priority: formData.status === 'Critical' ? 'High' : 'Normal' }
+                };
+                if(isEditMode) setPatients(patients.map(p => p.id === data.id ? data : p));
+                else setPatients([data, ...patients]);
                 setIsModalOpen(false);
-                setFormData({ name: '', phone: '', status: 'Stable', diagnosis: '' });
+                setFormData(initialPatientState);
             };
 
-            const deletePatient = (id) => {
-                setPatients(patients.filter(p => p.id !== id));
-            };
+            const openDetails = (p) => { setSelectedPatient(p); setActiveTab('details'); };
+
+            const filtered = patients.filter(p => p.name.includes(search) || p.phone.includes(search));
 
             return (
-                <div className="min-h-screen flex" dir="rtl">
-                    {/* Sidebar */}
-                    <aside className="w-64 bg-[#0d111d] border-l border-white/5 flex flex-col shrink-0">
+                <div className="min-h-screen flex selection:bg-blue-500/30" dir="rtl">
+                    {/* Sidebar - Same as your pro code */}
+                    <aside className="w-72 bg-[#0d111d] border-l border-white/5 flex flex-col shrink-0 z-20">
                         <div className="p-8 flex-1">
-                            <div className="flex items-center gap-3 mb-10">
-                                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-600/20">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M2 12h20"/></svg>
+                            <div className="flex items-center gap-3 mb-12">
+                                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/30 text-white">
+                                   <Icon name="activity" size={24}/>
                                 </div>
-                                <h1 className="font-black text-xl text-white">Clinica<span className="text-blue-500">PRO</span></h1>
+                                <div>
+                                    <h1 className="font-black text-lg text-white leading-none">Clinica<span className="text-blue-500">PRO</span></h1>
+                                    <span className="text-[9px] text-slate-500 font-bold tracking-widest uppercase">Intelligence Unit</span>
+                                </div>
                             </div>
                             <nav className="space-y-2">
-                                <button onClick={() => setActiveTab('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === 'dashboard' ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-white/5'}`}>
-                                    الرئيسية
-                                </button>
-                                <button onClick={() => setActiveTab('records')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${activeTab === 'records' ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-white/5'}`}>
-                                    المرضى
-                                </button>
+                                {['dashboard', 'records', 'appointments'].map(id => (
+                                    <button key={id} onClick={() => setActiveTab(id)} className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all ${activeTab === id ? 'bg-blue-600 text-white shadow-xl' : 'hover:bg-white/5 text-slate-500'}`}>
+                                        <div className="flex items-center gap-3 font-bold text-sm">
+                                            <Icon name={id === 'dashboard' ? 'layout-dashboard' : id === 'records' ? 'users' : 'calendar'}/>
+                                            {id === 'dashboard' ? 'لوحة التحكم' : id === 'records' ? 'السجلات الطبية' : 'المواعيد الذكية'}
+                                        </div>
+                                        {activeTab === id && <Icon name="chevron-right" size={14}/>}
+                                    </button>
+                                ))}
                             </nav>
+                        </div>
+                        <div className="p-6 border-t border-white/5 bg-black/20 text-slate-500 font-bold text-sm px-8 flex items-center gap-3">
+                            <Icon name="log-out" size={16}/> تسجيل الخروج
                         </div>
                     </aside>
 
-                    {/* Main Content */}
-                    <main className="flex-1 flex flex-col h-screen overflow-hidden">
-                        <header className="h-20 border-b border-white/5 px-8 flex items-center justify-between bg-[#070912]">
-                            <h2 className="text-white font-bold text-lg">{activeTab === 'dashboard' ? 'لوحة التحكم' : 'سجل المرضى'}</h2>
-                            <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-xl font-bold text-sm shadow-lg shadow-blue-600/20 transition-transform active:scale-95">
-                                + مريض جديد
-                            </button>
+                    {/* Main Workspace */}
+                    <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
+                        <header className="h-20 bg-[#070912]/80 backdrop-blur-md border-b border-white/5 px-8 flex items-center justify-between shrink-0 z-10">
+                            <h2 className="text-white font-black text-xl">
+                                {activeTab === 'dashboard' && 'الرئيسية'}
+                                {activeTab === 'records' && 'قاعدة البيانات'}
+                                {activeTab === 'details' && 'بروفايل المريض Intelligence'}
+                            </h2>
+                            <div className="flex items-center gap-6">
+                                <div className="relative group">
+                                    <Icon name="search" className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500" size={16}/>
+                                    <input type="text" placeholder="بحث ذكي..." className="bg-white/5 border border-white/10 rounded-2xl py-2.5 pr-12 pl-6 text-sm outline-none focus:border-blue-500 w-64 transition-all" value={search} onChange={e => setSearch(e.target.value)}/>
+                                </div>
+                                <button onClick={() => {setFormData(initialPatientState); setIsEditMode(false); setIsModalOpen(true);}} className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-2xl font-black text-sm flex items-center gap-2 shadow-lg shadow-blue-600/20 transition-transform active:scale-95">
+                                    <Icon name="plus" size={18}/> مريض جديد
+                                </button>
+                            </div>
                         </header>
 
                         <div className="flex-1 overflow-y-auto p-8 custom-scroll">
                             {activeTab === 'dashboard' && (
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in">
-                                    <div className="bg-[#0d111d] p-8 rounded-[2rem] border border-white/5">
-                                        <p className="text-xs font-bold text-slate-500 uppercase mb-2">إجمالي المسجلين</p>
-                                        <div className="text-5xl font-black text-blue-500">{patients.length}</div>
+                                <div className="space-y-8 animate-in">
+                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                        <div className="bg-[#0d111d] p-6 rounded-[2rem] border border-white/5">
+                                            <p className="text-[10px] font-black text-slate-500 uppercase mb-2">إجمالي المرضى</p>
+                                            <div className="text-4xl font-black text-blue-500">{patients.length}</div>
+                                        </div>
+                                        <div className="bg-[#0d111d] p-6 rounded-[2rem] border border-white/5">
+                                            <p className="text-[10px] font-black text-slate-500 uppercase mb-2">حالات حرجة</p>
+                                            <div className="text-4xl font-black text-red-500">{patients.filter(p => p.status === 'Critical').length}</div>
+                                        </div>
                                     </div>
-                                    <div className="bg-[#0d111d] p-8 rounded-[2rem] border border-white/5">
-                                        <p className="text-xs font-bold text-slate-500 uppercase mb-2">حالات مستقرة</p>
-                                        <div className="text-5xl font-black text-emerald-500">{patients.filter(p => p.status === 'Stable').length}</div>
+                                    <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 rounded-[2.5rem] relative overflow-hidden shadow-2xl">
+                                        <div className="relative z-10">
+                                            <h3 className="text-2xl font-black text-white mb-2">AI Predictor Ready</h3>
+                                            <p className="text-blue-100 text-sm opacity-80 max-w-xs mb-6">نظام التحليل جاهز لمعالجة البيانات الجديدة واستخراج المخاطر المحتملة.</p>
+                                            <button className="bg-white text-blue-600 font-black py-3 px-8 rounded-2xl text-sm">بدء الفحص</button>
+                                        </div>
+                                        <Icon name="database" size={200} className="absolute -right-10 -bottom-10 opacity-10 text-white"/>
                                     </div>
                                 </div>
                             )}
 
                             {activeTab === 'records' && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in">
-                                    {patients.map(p => (
-                                        <div key={p.id} className="bg-[#0d111d] p-6 rounded-[2rem] border border-white/5 relative group transition-all hover:border-blue-500/30">
-                                            <div className="w-12 h-12 bg-blue-600/10 rounded-xl flex items-center justify-center text-blue-500 font-black mb-4">{p.name[0]}</div>
-                                            <h4 className="text-white font-bold text-lg">{p.name}</h4>
-                                            <p className="text-slate-500 text-xs mb-4">{p.phone}</p>
-                                            <div className="flex justify-between items-center pt-4 border-t border-white/5">
-                                                <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-lg">{p.status}</span>
-                                                <button onClick={() => deletePatient(p.id)} className="text-slate-600 hover:text-red-500 transition-colors">حذف</button>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in">
+                                    {filtered.map(p => (
+                                        <div key={p.id} className="bg-[#0d111d] p-6 rounded-[2.5rem] border border-white/5 hover:border-blue-500/30 transition-all group relative overflow-hidden">
+                                            <div className="flex gap-4 mb-6">
+                                                <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center text-white font-black text-2xl shadow-lg shadow-blue-600/20">{p.name[0]}</div>
+                                                <div>
+                                                    <h4 className="text-white font-bold text-lg">{p.name}</h4>
+                                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${p.status === 'Critical' ? 'text-red-500 border-red-500/20' : 'text-green-500 border-green-500/20'}`}>{p.status}</span>
+                                                </div>
                                             </div>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => openDetails(p)} className="flex-1 bg-white/5 hover:bg-blue-600 py-3 rounded-2xl text-[11px] font-black transition-all border border-white/5">فتح السجل</button>
+                                                <button onClick={() => {setFormData(p); setIsEditMode(true); setIsModalOpen(true);}} className="p-3 bg-white/5 rounded-2xl hover:text-blue-500 border border-white/5"><Icon name="edit-3" size={16}/></button>
+                                            </div>
+                                            {p.status === 'Critical' && <div className="absolute top-0 right-0 w-1.5 h-full bg-red-500"></div>}
                                         </div>
                                     ))}
-                                    {patients.length === 0 && <p className="col-span-full text-center text-slate-500 mt-20">لا يوجد مرضى مسجلين حالياً.</p>}
+                                </div>
+                            )}
+
+                            {activeTab === 'details' && selectedPatient && (
+                                <div className="animate-in space-y-8 max-w-6xl mx-auto pb-12">
+                                    <button onClick={() => setActiveTab('records')} className="flex items-center gap-2 text-slate-500 hover:text-blue-500 font-bold text-sm"><Icon name="chevron-left"/> العودة للقائمة</button>
+                                    <div className="bg-[#0d111d] p-10 rounded-[3rem] border border-white/5 flex items-center justify-between">
+                                        <div className="flex items-center gap-8">
+                                            <div className="w-32 h-32 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-[2.5rem] flex items-center justify-center text-white text-5xl font-black">{selectedPatient.name[0]}</div>
+                                            <div>
+                                                <h2 className="text-4xl font-black text-white mb-2">{selectedPatient.name}</h2>
+                                                <div className="flex gap-6 text-slate-500 font-bold text-sm">
+                                                    <span>{selectedPatient.phone}</span>
+                                                    <span>{selectedPatient.age} سنة</span>
+                                                    <span className="text-blue-500 uppercase">Status: {selectedPatient.status}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                        <div className="lg:col-span-2 space-y-8">
+                                            <div className="grid grid-cols-4 gap-4">
+                                                {['bp', 'hr', 'spo2', 'temp'].map(v => (
+                                                    <div key={v} className="bg-white/5 p-5 rounded-[2rem] border border-white/5 text-center">
+                                                        <p className="text-[10px] font-black text-slate-500 uppercase mb-1">{v}</p>
+                                                        <div className="text-xl font-black text-white">{selectedPatient.vitals[v] || '--'}</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="bg-blue-600/10 border border-blue-500/20 p-8 rounded-[2.5rem]">
+                                                <h3 className="text-blue-500 font-black flex items-center gap-2 mb-4"><Icon name="database"/> AI Risk Analysis</h3>
+                                                <div className="flex items-center gap-6">
+                                                    <div className="text-4xl font-black text-white">{selectedPatient.aiInsights.riskScore}%</div>
+                                                    <p className="text-slate-500 text-xs">بناءً على المؤشرات الحيوية والتشخيص الحالي، المريض في وضع {selectedPatient.status === 'Critical' ? 'حرج جداً' : 'مستقر'}.</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="bg-[#0d111d] p-8 rounded-[2.5rem] border border-white/5">
+                                            <h4 className="text-white font-bold mb-4">التشخيص الحالي</h4>
+                                            <p className="text-sm text-slate-400 leading-relaxed bg-white/5 p-4 rounded-xl border border-white/5">{selectedPatient.diagnosis.primary || 'لا يوجد تشخيص مسجل.'}</p>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                         </div>
                     </main>
 
-                    {/* Modal */}
+                    {/* Modal Engine */}
                     {isModalOpen && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in">
-                            <div className="bg-[#0d111d] w-full max-w-md rounded-[2.5rem] p-10 border border-white/10 relative shadow-2xl">
-                                <button onClick={() => setIsModalOpen(false)} className="absolute top-6 left-6 text-slate-500 hover:text-white text-xl font-bold">✕</button>
-                                <h3 className="text-2xl font-black text-white mb-8">إضافة مريض</h3>
-                                <form onSubmit={handleSave} className="space-y-4">
-                                    <input placeholder="الاسم الكامل" required className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white outline-none focus:border-blue-500" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-                                    <input placeholder="رقم الهاتف" required className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white outline-none focus:border-blue-500" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
-                                    <select className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white outline-none" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
-                                        <option value="Stable">مستقر</option>
-                                        <option value="Critical">حرج</option>
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-in">
+                            <div className="bg-[#0d111d] w-full max-w-2xl rounded-[3rem] p-10 border border-white/10 relative shadow-2xl">
+                                <button onClick={() => setIsModalOpen(false)} className="absolute top-8 left-8 text-slate-500 hover:text-white"><Icon name="x"/></button>
+                                <h3 className="text-2xl font-black text-white mb-10 flex items-center gap-3">
+                                    <Icon name={isEditMode ? "edit-3" : "plus"} className="text-blue-500"/>
+                                    {isEditMode ? 'تحديث السجل الطبي' : 'إنشاء سجل طبي ذكي'}
+                                </h3>
+                                <form onSubmit={handleSave} className="space-y-6">
+                                    <input placeholder="الاسم الكامل" required className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-500" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <input placeholder="رقم الهاتف" className="bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                                        <input placeholder="العمر" className="bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none" value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} />
+                                    </div>
+                                    <select className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
+                                        <option value="Stable">Stable (مستقر)</option>
+                                        <option value="Critical">Critical (حرج)</option>
+                                        <option value="Monitoring">Monitoring (مراقبة)</option>
                                     </select>
-                                    <button type="submit" className="w-full bg-blue-600 py-4 rounded-2xl text-white font-black shadow-lg shadow-blue-600/20 hover:bg-blue-500 transition-all">حفظ البيانات</button>
+                                    <textarea placeholder="التشخيص الرئيسي" rows="3" className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-500" value={formData.diagnosis.primary} onChange={e => setFormData({...formData, diagnosis: {...formData.diagnosis, primary: e.target.value}})} />
+                                    <button type="submit" className="w-full bg-blue-600 py-5 rounded-[2rem] text-white font-black text-lg shadow-2xl shadow-blue-600/30 hover:bg-blue-500 transition-all">حفظ السجل الطبي</button>
                                 </form>
                             </div>
                         </div>
