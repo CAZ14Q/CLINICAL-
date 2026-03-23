@@ -3,107 +3,190 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ClinicaPRO | نظام إدارة العيادة</title>
+    <title>ClinicaPRO AI v2 | نظام إدارة العيادة الذكي</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
     
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
-        body { font-family: 'Tajawal', sans-serif; }
-        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        body { font-family: 'Tajawal', sans-serif; overflow: hidden; }
+        .custom-scroll::-webkit-scrollbar { width: 5px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
-        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-in { animation: fadeIn 0.4s ease-out forwards; }
     </style>
+
+    <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js",
+        "lucide-react": "https://esm.sh/lucide-react@0.284.0"
+      }
+    }
+    </script>
 </head>
 <body class="bg-[#070912] text-slate-300">
 
     <div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+    <script type="text/babel" data-type="module">
+        import { initializeApp } from 'firebase/app';
+        import { getAuth, signInAnonymously, onAuthStateChanged, signOut } from 'firebase/auth';
+        import { 
+          getFirestore, collection, addDoc, onSnapshot, doc, 
+          updateDoc, deleteDoc, serverTimestamp 
+        } from 'firebase/firestore';
+        import { 
+          Users, Plus, Search, Phone, Calendar, 
+          Edit3, X, Clock, LayoutDashboard, 
+          ChevronLeft, Activity, Database,
+          Trash2, LogOut, Stethoscope, TrendingUp, 
+          ShieldAlert, ChevronRight, MoreVertical, Printer
+        } from 'lucide-react';
 
-        // --- واجهة التطبيق الرئيسية ---
+        const { useState, useEffect } = React;
+
+        // --- Firebase Config (ضع بياناتك هنا) ---
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = 'clinica-pro-ai-v2';
+
         function App() {
-            const [activeTab, setActiveTab] = useState('dashboard');
+            const [user, setUser] = useState(null);
+            const [patients, setPatients] = useState([]);
             const [search, setSearch] = useState('');
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [selectedPatient, setSelectedPatient] = useState(null);
             const [isModalOpen, setIsModalOpen] = useState(false);
-            
-            // بيانات تجريبية (لأننا في ملف HTML واحد بدون سيرفر حالياً)
-            const [patients, setPatients] = useState([
-                { id: 1, name: "أحمد محمد", phone: "0501234567", status: "Active", condition: "مراجعة دورية", age: 35 },
-                { id: 2, name: "سارة خالد", phone: "0559876543", status: "Critical", condition: "ارتفاع ضغط الدم", age: 29 }
-            ]);
+            const [loading, setLoading] = useState(false);
 
-            const filteredPatients = patients.filter(p => p.name.includes(search));
+            const initialPatientState = {
+                name: '', phone: '', age: '', gender: 'Male', status: 'Stable',
+                vitals: { bp: '', hr: '', temp: '', spo2: '' },
+                diagnosis: { primary: '', secondary: '', icdCode: '' }
+            };
+            const [formData, setFormData] = useState(initialPatientState);
+
+            useEffect(() => {
+                const unsubAuth = onAuthStateChanged(auth, (currUser) => {
+                    if (currUser) setUser(currUser);
+                    else signInAnonymously(auth);
+                });
+                return unsubAuth;
+            }, []);
+
+            useEffect(() => {
+                if (!user) return;
+                const pRef = collection(db, 'artifacts', appId, 'users', user.uid, 'patients');
+                return onSnapshot(pRef, (snap) => {
+                    setPatients(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+                });
+            }, [user]);
+
+            const handleSave = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                try {
+                    const pRef = collection(db, 'artifacts', appId, 'users', user.uid, 'patients');
+                    const data = { ...formData, updatedAt: serverTimestamp(), aiInsights: { riskScore: formData.status === 'Critical' ? 85 : 15 } };
+                    if (formData.id) await updateDoc(doc(pRef, formData.id), data);
+                    else await addDoc(pRef, { ...data, createdAt: serverTimestamp() });
+                    setIsModalOpen(false);
+                    setFormData(initialPatientState);
+                } catch (err) { console.error(err); } finally { setLoading(false); }
+            };
+
+            if (!user) return <div className="h-screen flex items-center justify-center text-blue-500 font-bold animate-pulse text-xl">Initializing Secure Core...</div>;
 
             return (
-                <div class="min-h-screen flex transition-all duration-500">
-                    
+                <div className="min-h-screen flex rtl" dir="rtl">
                     {/* Sidebar */}
-                    <aside class="w-64 bg-[#0d111d] border-l border-white/5 flex flex-col hidden md:flex">
-                        <div class="p-8 flex-1">
-                            <div class="flex items-center gap-3 mb-12">
-                                <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
-                                    <i data-lucide="activity" class="text-white"></i>
+                    <aside className="w-72 bg-[#0d111d] border-l border-white/5 flex flex-col shrink-0">
+                        <div className="p-8 flex-1">
+                            <div className="flex items-center gap-3 mb-12">
+                                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/30">
+                                   <Activity size={24} className="text-white"/>
                                 </div>
-                                <h1 class="font-black text-xl text-white tracking-tight">Clinica<span class="text-blue-600">PRO</span></h1>
+                                <h1 className="font-black text-lg text-white">Clinica<span className="text-blue-500">PRO</span></h1>
                             </div>
-                            
-                            <nav class="space-y-2">
-                                <NavItem active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon="layout-dashboard" label="الرئيسية" />
-                                <NavItem active={activeTab === 'records'} onClick={() => setActiveTab('records')} icon="users" label="المرضى" />
-                                <NavItem active={activeTab === 'appts'} onClick={() => setActiveTab('appts')} icon="calendar" label="المواعيد" />
+                            <nav className="space-y-2">
+                                <button onClick={() => setActiveTab('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition ${activeTab === 'dashboard' ? 'bg-blue-600 text-white shadow-xl' : 'hover:bg-white/5'}`}>
+                                    <LayoutDashboard size={18}/> <span className="font-bold">لوحة التحكم</span>
+                                </button>
+                                <button onClick={() => setActiveTab('records')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition ${activeTab === 'records' ? 'bg-blue-600 text-white shadow-xl' : 'hover:bg-white/5'}`}>
+                                    <Users size={18}/> <span className="font-bold">السجلات الطبية</span>
+                                </button>
                             </nav>
                         </div>
-                        <div class="p-6 border-t border-white/5">
-                            <button class="flex items-center gap-3 text-slate-500 hover:text-red-500 transition w-full px-4">
-                                <i data-lucide="log-out" class="w-4"></i> خروج
-                            </button>
-                        </div>
+                        <div className="p-6 border-t border-white/5"><button onClick={() => signOut(auth)} className="flex items-center gap-3 text-slate-500 hover:text-red-500 w-full px-4 font-bold"><LogOut size={16}/> خروج</button></div>
                     </aside>
 
-                    {/* Main Content */}
-                    <main class="flex-1 flex flex-col h-screen overflow-hidden">
-                        <header class="h-20 bg-[#070912]/80 backdrop-blur-md border-b border-white/5 px-8 flex items-center justify-between z-10">
-                            <h2 class="text-white font-bold text-lg">
-                                {activeTab === 'dashboard' ? 'لوحة التحكم' : activeTab === 'records' ? 'سجل المرضى' : 'المواعيد'}
-                            </h2>
-                            <div class="flex items-center gap-4">
-                                <div class="relative hidden sm:block">
-                                    <i data-lucide="search" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 w-4"></i>
-                                    <input 
-                                        type="text" 
-                                        placeholder="بحث عن مريض..." 
-                                        class="bg-white/5 border border-white/10 rounded-xl py-2 pr-10 pl-4 text-xs outline-none focus:border-blue-500 w-64 transition-all"
-                                        value={search}
-                                        onChange={(e) => setSearch(e.target.value)}
-                                    />
-                                </div>
-                                <button onClick={() => setIsModalOpen(true)} class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg shadow-blue-600/30 transition-transform active:scale-95">
-                                    <i data-lucide="plus" class="w-4"></i> مريض جديد
-                                </button>
-                            </div>
+                    {/* Main Workspace */}
+                    <main className="flex-1 flex flex-col h-screen overflow-hidden">
+                        <header className="h-20 bg-[#070912] border-b border-white/5 px-8 flex items-center justify-between shrink-0">
+                           <h2 className="text-white font-black text-xl">{activeTab === 'dashboard' ? 'الرئيسية' : 'قاعدة البيانات'}</h2>
+                           <div className="flex items-center gap-4">
+                              <div className="relative group">
+                                <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500" size={16}/>
+                                <input type="text" placeholder="بحث ذكي..." className="bg-white/5 border border-white/10 rounded-2xl py-2 px-10 text-sm outline-none focus:border-blue-500 w-64 transition-all" value={search} onChange={e => setSearch(e.target.value)} />
+                              </div>
+                              <button onClick={() => {setFormData(initialPatientState); setIsModalOpen(true);}} className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-2xl font-black text-sm flex items-center gap-2 shadow-lg shadow-blue-600/20">
+                                <Plus size={18}/> مريض جديد
+                              </button>
+                           </div>
                         </header>
 
-                        <div class="flex-1 overflow-y-auto p-8 custom-scroll">
+                        <div className="flex-1 overflow-y-auto p-8 custom-scroll">
                             {activeTab === 'dashboard' && (
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
-                                    <StatCard label="إجمالي المرضى" value={patients.length} color="blue" />
-                                    <StatCard label="حالات نشطة" value="12" color="green" />
-                                    <StatCard label="مواعيد اليوم" value="5" color="orange" />
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-in">
+                                    <div className="bg-[#0d111d] p-6 rounded-[2rem] border border-white/5">
+                                        <p className="text-[10px] font-black text-slate-500 uppercase mb-2">إجمالي المرضى</p>
+                                        <div className="text-4xl font-black text-blue-500">{patients.length}</div>
+                                    </div>
+                                    <div className="bg-[#0d111d] p-6 rounded-[2rem] border border-white/5">
+                                        <p className="text-[10px] font-black text-slate-500 uppercase mb-2">حالات حرجة</p>
+                                        <div className="text-4xl font-black text-red-500">{patients.filter(p => p.status === 'Critical').length}</div>
+                                    </div>
                                 </div>
                             )}
 
                             {activeTab === 'records' && (
-                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
-                                    {filteredPatients.map(p => (
-                                        <PatientCard key={p.id} patient={p} />
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in">
+                                    {patients.filter(p => p.name.includes(search)).map(p => (
+                                        <div key={p.id} className="bg-[#0d111d] p-6 rounded-[2.5rem] border border-white/5 hover:border-blue-500/30 transition-all relative group overflow-hidden">
+                                            <div className="flex gap-4 mb-6">
+                                                <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-black text-2xl">{p.name[0]}</div>
+                                                <div>
+                                                    <h4 className="text-white font-bold text-lg leading-tight">{p.name}</h4>
+                                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${p.status === 'Critical' ? 'text-red-500 border-red-500/20' : 'text-green-500 border-green-500/20'}`}>{p.status}</span>
+                                                </div>
+                                            </div>
+                                            <div className="bg-white/5 p-4 rounded-xl mb-4 text-xs">
+                                                <p className="text-slate-500 mb-1">التشخيص:</p>
+                                                <p className="text-white font-medium truncate">{p.diagnosis?.primary || 'لا يوجد'}</p>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => {setFormData(p); setIsModalOpen(true);}} className="flex-1 bg-white/5 py-2 rounded-xl hover:text-blue-500"><Edit3 size={16} className="mx-auto"/></button>
+                                                <button onClick={async () => await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'patients', p.id))} className="flex-1 bg-white/5 py-2 rounded-xl hover:text-red-500"><Trash2 size={16} className="mx-auto"/></button>
+                                            </div>
+                                        </div>
                                     ))}
                                 </div>
                             )}
@@ -112,17 +195,24 @@
 
                     {/* Modal */}
                     {isModalOpen && (
-                        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-fade-in">
-                            <div class="bg-[#0d111d] w-full max-w-md rounded-[2.5rem] p-10 border border-white/10 relative shadow-2xl">
-                                <button onClick={() => setIsModalOpen(false)} class="absolute top-8 left-8 text-slate-500 hover:text-white transition">
-                                    <i data-lucide="x"></i>
-                                </button>
-                                <h3 class="text-2xl font-black text-white mb-8">تسجيل مريض</h3>
-                                <div class="space-y-4">
-                                    <input placeholder="الاسم الكامل" class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-blue-500 text-white" />
-                                    <input placeholder="رقم الجوال" class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-blue-500 text-white" />
-                                    <button class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl text-white font-black mt-4 shadow-lg shadow-blue-600/20 transition-all">حفظ البيانات</button>
-                                </div>
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in">
+                            <div className="bg-[#0d111d] w-full max-w-2xl rounded-[3rem] p-10 border border-white/10 relative">
+                                <button onClick={() => setIsModalOpen(false)} className="absolute top-8 left-8 text-slate-500 hover:text-white"><X/></button>
+                                <h3 className="text-2xl font-black text-white mb-8">إضافة / تعديل سجل مريض</h3>
+                                <form onSubmit={handleSave} className="space-y-6">
+                                    <input placeholder="الاسم الكامل" required className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm text-white outline-none focus:border-blue-500" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <input placeholder="رقم الجوال" className="bg-white/5 border border-white/10 rounded-2xl p-4 text-sm text-white outline-none" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                                        <select className="bg-white/5 border border-white/10 rounded-2xl p-4 text-sm text-white outline-none" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
+                                            <option value="Stable">مستقر</option>
+                                            <option value="Critical">حرج</option>
+                                        </select>
+                                    </div>
+                                    <textarea placeholder="التشخيص الرئيسي" className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm text-white outline-none focus:border-blue-500" value={formData.diagnosis.primary} onChange={e => setFormData({...formData, diagnosis: {...formData.diagnosis, primary: e.target.value}})} />
+                                    <button type="submit" disabled={loading} className="w-full bg-blue-600 py-4 rounded-[2rem] text-white font-black text-lg shadow-2xl hover:bg-blue-500 transition-all">
+                                        {loading ? 'جاري الحفظ...' : 'حفظ السجل الطبي'}
+                                    </button>
+                                </form>
                             </div>
                         </div>
                     )}
@@ -130,63 +220,8 @@
             );
         }
 
-        // --- المكونات الفرعية (Sub-components) ---
-
-        function NavItem({ active, onClick, icon, label }) {
-            return (
-                <button onClick={onClick} class={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all duration-300 ${active ? 'bg-blue-600 text-white shadow-xl shadow-blue-600/20 translate-x-1' : 'hover:bg-white/5 text-slate-400'}`}>
-                    <i data-lucide={icon} class="w-5"></i>
-                    <span class="text-sm font-bold">{label}</span>
-                </button>
-            );
-        }
-
-        function StatCard({ label, value, color }) {
-            const colors = {
-                blue: 'text-blue-500',
-                green: 'text-emerald-500',
-                orange: 'text-orange-500'
-            };
-            return (
-                <div class="bg-[#0d111d] p-8 rounded-[2rem] border border-white/5 hover:border-white/10 transition-all">
-                    <p class="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-3">{label}</p>
-                    <div class={`text-4xl font-black ${colors[color]}`}>{value}</div>
-                </div>
-            );
-        }
-
-        function PatientCard({ patient }) {
-            return (
-                <div class="bg-[#0d111d] p-6 rounded-[2rem] border border-white/5 group hover:border-blue-500/30 transition-all duration-500">
-                    <div class="flex justify-between items-start mb-6">
-                        <div class="w-14 h-14 bg-gradient-to-br from-blue-600/20 to-blue-600/5 rounded-2xl flex items-center justify-center text-blue-500 font-black text-xl border border-blue-600/10">
-                            {patient.name[0]}
-                        </div>
-                        <span class={`text-[10px] font-black px-3 py-1.5 rounded-xl ${patient.status === 'Critical' ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
-                            {patient.status === 'Critical' ? 'حالة حرجة' : 'مستقر'}
-                        </span>
-                    </div>
-                    <h4 class="text-white font-bold text-lg mb-1 group-hover:text-blue-400 transition-colors">{patient.name}</h4>
-                    <p class="text-xs text-slate-500 mb-4">{patient.phone}</p>
-                    <div class="pt-4 border-t border-white/5 flex items-center justify-between">
-                        <div class="flex items-center gap-2 text-slate-400 text-[10px]">
-                            <i data-lucide="clock" class="w-3"></i> {patient.age} سنة
-                        </div>
-                        <button class="text-slate-500 hover:text-white transition">
-                            <i data-lucide="more-horizontal" class="w-5"></i>
-                        </button>
-                    </div>
-                </div>
-            );
-        }
-
-        // تشغيل React وتفعيل الأيقونات
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
-        
-        // تحديث الأيقونات بعد التحميل
-        setTimeout(() => lucide.createIcons(), 100);
     </script>
 </body>
 </html>
-
