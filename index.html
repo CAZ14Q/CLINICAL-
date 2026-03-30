@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ClinicaPRO | Ultimate System</title>
+    <title>ClinicaPRO | Ultimate OS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -11,12 +11,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        body { font-family: 'Tajawal', sans-serif; background-color: #070912; color: #cbd5e1; overflow: hidden; }
+        body { font-family: 'Tajawal', sans-serif; background-color: #05070a; color: #cbd5e1; overflow: hidden; }
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
-        .animate-in { animation: fadeIn 0.3s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        select option { background: #0d111d; color: white; }
+        .animate-in { animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .glass { background: rgba(13, 17, 29, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.05); }
+        .input-style { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 1.25rem; padding: 1rem 1.25rem; color: white; outline: none; transition: all 0.3s; width: 100%; }
+        .input-style:focus { border-color: #3b82f6; background: rgba(255,255,255,0.06); box-shadow: 0 0 20px rgba(59, 130, 246, 0.1); }
     </style>
 </head>
 <body>
@@ -33,197 +35,203 @@
         function App() {
             const [folders, setFolders] = useState(() => JSON.parse(localStorage.getItem('cp_folders')) || []);
             const [patients, setPatients] = useState(() => JSON.parse(localStorage.getItem('cp_patients')) || []);
-            const [activeTab, setActiveTab] = useState('records'); // البداية من سجلات المرضى
-            const [sidebarOpen, setSidebarOpen] = useState(true);
+            const [activeTab, setActiveTab] = useState('home');
             const [searchTerm, setSearchTerm] = useState('');
-            
-            // النوافذ (Modals)
-            const [isFolderModal, setIsFolderModal] = useState(false);
-            const [isPatientModal, setIsPatientModal] = useState(false);
-            const [isVisitModal, setIsVisitModal] = useState(false);
-            
-            const [selectedPatient, setSelectedPatient] = useState(null);
-            const [selectedFolder, setSelectedFolder] = useState(null);
+            const [sidebarOpen, setSidebarOpen] = useState(true);
 
-            // بيانات النماذج
-            const [newFolderName, setNewFolderName] = useState('');
-            const [formData, setFormData] = useState({ name: '', phone: '', age: '', folderId: '', notes: '', treatment: '', tests: '' });
-            const [visitData, setVisitData] = useState({ type: 'متابعة', diagnosis: '', treatment: '', tests: '', note: '' });
+            // Modals
+            const [isPatientModal, setIsPatientModal] = useState(false);
+            const [isFolderModal, setIsFolderModal] = useState(false);
+            const [selectedPatient, setSelectedPatient] = useState(null);
+            
+            // New Patient Form State (Extended)
+            const [regStep, setRegStep] = useState(1);
+            const [formData, setFormData] = useState({
+                name: '', phone: '', age: '', gender: 'ذكر', folderId: '',
+                bloodType: 'O+', weight: '', height: '', pressure: '',
+                chronicDiseases: '', allergies: '', notes: ''
+            });
 
             useEffect(() => {
                 localStorage.setItem('cp_folders', JSON.stringify(folders));
                 localStorage.setItem('cp_patients', JSON.stringify(patients));
             }, [folders, patients]);
 
-            // البحث
             const filteredPatients = useMemo(() => {
                 return patients.filter(p => p.name.includes(searchTerm) || p.phone.includes(searchTerm));
             }, [patients, searchTerm]);
 
-            // 1. إضافة ملف (تخصص)
-            const handleAddFolder = (e) => {
-                e.preventDefault();
-                const folder = { id: Date.now(), name: newFolderName };
-                setFolders([...folders, folder]);
-                setNewFolderName('');
-                setIsFolderModal(false);
-            };
-
-            // 2. إضافة مريض وربطه بملف
-            const handleAddPatient = (e) => {
+            const handleSavePatient = (e) => {
                 e.preventDefault();
                 const folderName = folders.find(f => f.id.toString() === formData.folderId.toString())?.name || 'عام';
-                const newP = { 
-                    ...formData, 
-                    id: Date.now(), 
+                const newP = {
+                    ...formData,
+                    id: Date.now(),
                     date: new Date().toLocaleDateString('ar-EG'),
                     history: [{
                         date: new Date().toLocaleDateString('ar-EG'),
-                        type: 'كشف أول',
-                        diagnosis: folderName,
-                        treatment: formData.treatment || '—',
-                        tests: formData.tests || '—',
-                        note: formData.notes || 'تم تسجيل المريض'
+                        type: 'تسجيل أولي',
+                        diagnosis: 'فتح ملف جديد في قسم ' + folderName,
+                        treatment: 'مؤشرات حيوية: ضغط ('+formData.pressure+') وزن ('+formData.weight+')',
+                        note: formData.notes || 'تم الانتهاء من فحص التسجيل'
                     }]
                 };
                 setPatients([newP, ...patients]);
                 setIsPatientModal(false);
-                setFormData({ name: '', phone: '', age: '', folderId: '', notes: '', treatment: '', tests: '' });
-            };
-
-            // 3. إضافة زيارة احترافية
-            const handleAddNewVisit = (e) => {
-                e.preventDefault();
-                const newVisit = { date: new Date().toLocaleDateString('ar-EG'), ...visitData };
-                const updated = patients.map(p => p.id === selectedPatient.id ? { ...p, history: [newVisit, ...p.history] } : p);
-                setPatients(updated);
-                setSelectedPatient({ ...selectedPatient, history: [newVisit, ...selectedPatient.history] });
-                setIsVisitModal(false);
-                setVisitData({ type: 'متابعة', diagnosis: '', treatment: '', tests: '', note: '' });
+                setRegStep(1);
+                setFormData({ name: '', phone: '', age: '', gender: 'ذكر', folderId: '', bloodType: 'O+', weight: '', height: '', pressure: '', chronicDiseases: '', allergies: '', notes: '' });
             };
 
             return (
-                <div className="min-h-screen flex overflow-hidden" dir="rtl">
-                    
-                    {/* Sidebar */}
-                    <aside className={`bg-[#0d111d] border-l border-white/5 flex flex-col transition-all duration-500 ${sidebarOpen ? 'w-72' : 'w-0 opacity-0 overflow-hidden'}`}>
-                        <div className="p-8 flex-1">
-                            <div className="flex items-center gap-3 mb-12">
-                                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-600/20"><Icon name="activity" size={24}/></div>
-                                <h1 className="font-black text-lg text-white">Clinica<span className="text-blue-500">PRO</span></h1>
+                <div className="min-h-screen flex" dir="rtl">
+                    {/* Sidebar المتطور */}
+                    <aside className={`glass border-l border-white/5 transition-all duration-500 flex flex-col ${sidebarOpen ? 'w-80' : 'w-0 opacity-0 overflow-hidden'}`}>
+                        <div className="p-8">
+                            <div className="flex items-center gap-4 mb-12">
+                                <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-2xl shadow-blue-600/40"><Icon name="activity" size={28}/></div>
+                                <div><h1 className="font-black text-xl text-white tracking-tight">Clinica<span className="text-blue-500 font-black">PRO</span></h1><p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Medical OS v4.0</p></div>
                             </div>
-                            <nav className="space-y-3">
-                                <button onClick={() => {setActiveTab('records'); setSelectedFolder(null); setSelectedPatient(null)}} className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-all ${activeTab === 'records' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-500 hover:bg-white/5'}`}>
-                                    <Icon name="users"/> <span className="font-bold text-sm">سجلات المرضى</span>
-                                </button>
-                                <button onClick={() => {setActiveTab('folders'); setSelectedFolder(null); setSelectedPatient(null)}} className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-all ${activeTab === 'folders' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:bg-white/5'}`}>
-                                    <Icon name="folder-plus"/> <span className="font-bold text-sm">إضافة ملفات</span>
-                                </button>
+                            
+                            <nav className="space-y-2">
+                                {[
+                                    {id:'home', icon:'layout-grid', l:'الرئيسية'},
+                                    {id:'search', icon:'search', l:'البحث المتقدم'},
+                                    {id:'folders', icon:'folder-plus', l:'إضافة ملفات'},
+                                    {id:'records', icon:'users', l:'سجلات المرضى'}
+                                ].map(t => (
+                                    <button key={t.id} onClick={() => {setActiveTab(t.id); setSelectedPatient(null)}} className={`w-full flex items-center gap-4 px-5 py-4 rounded-[1.5rem] transition-all ${activeTab === t.id ? 'bg-blue-600 text-white shadow-xl shadow-blue-600/20' : 'text-slate-500 hover:bg-white/5'}`}>
+                                        <Icon name={t.icon} size={20}/> <span className="font-black text-sm">{t.l}</span>
+                                    </button>
+                                ))}
                             </nav>
                         </div>
                     </aside>
 
-                    <main className="flex-1 flex flex-col h-screen overflow-hidden">
-                        <header className="h-24 bg-[#070912]/80 border-b border-white/5 flex items-center justify-between px-8">
-                            <div className="flex items-center gap-4 flex-1">
-                                <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-blue-500"><Icon name="menu" size={20}/></button>
-                                <div className="relative w-full max-w-md">
-                                    <Icon name="search" className="absolute right-4 top-3.5 text-slate-500" size={16}/>
-                                    <input type="text" placeholder="ابحث في السجلات..." className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 pr-12 text-sm text-white outline-none focus:border-blue-500 transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                                </div>
+                    <main className="flex-1 flex flex-col relative h-screen overflow-hidden">
+                        <header className="h-24 px-10 flex items-center justify-between border-b border-white/5 glass">
+                            <div className="flex items-center gap-6 flex-1">
+                                <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-3 hover:bg-white/5 rounded-2xl text-blue-500 transition-all"><Icon name="menu"/></button>
+                                <h2 className="text-white font-black text-2xl tracking-tighter">
+                                    {activeTab === 'home' && 'لوحة القيادة'}
+                                    {activeTab === 'search' && 'وحدة البحث الذكي'}
+                                    {activeTab === 'folders' && 'إدارة المجلدات'}
+                                    {activeTab === 'records' && 'قاعدة البيانات'}
+                                </h2>
                             </div>
-                            <div className="flex gap-3">
-                                {activeTab === 'folders' && <button onClick={() => setIsFolderModal(true)} className="bg-blue-600 text-white px-6 py-2.5 rounded-2xl font-black text-sm flex items-center gap-2 transition-transform active:scale-95"><Icon name="plus-square" size={18}/> إنشاء ملف</button>}
-                                {activeTab === 'records' && <button onClick={() => setIsPatientModal(true)} className="bg-white text-black px-6 py-2.5 rounded-2xl font-black text-sm flex items-center gap-2 transition-transform active:scale-95"><Icon name="user-plus" size={18}/> تسجيل مريض</button>}
-                            </div>
+                            <button onClick={() => setIsPatientModal(true)} className="bg-white text-black px-8 py-3.5 rounded-2xl font-black text-sm flex items-center gap-3 hover:bg-blue-600 hover:text-white transition-all transform active:scale-95 shadow-xl shadow-white/5">
+                                <Icon name="user-plus" size={20}/> تسجيل مريض متطور
+                            </button>
                         </header>
 
-                        <div className="flex-1 overflow-y-auto p-8 custom-scroll">
-                            
-                            {/* 1. قسم إضافة وإدارة الملفات */}
-                            {activeTab === 'folders' && !selectedFolder && (
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-in">
-                                    {folders.map(f => (
-                                        <div key={f.id} onClick={() => setSelectedFolder(f)} className="bg-[#0d111d] p-8 rounded-[2.5rem] border border-white/5 hover:border-blue-500/30 transition-all cursor-pointer group shadow-xl">
-                                            <Icon name="folder" size={40} className="text-blue-500 mb-4 group-hover:scale-110 transition-transform"/>
-                                            <h3 className="text-white font-black text-lg">{f.name}</h3>
-                                            <p className="text-slate-500 text-[10px] mt-2 font-bold uppercase">{patients.filter(p => p.folderId.toString() === f.id.toString()).length} مريض مرتبط</p>
+                        <div className="flex-1 overflow-y-auto p-10 custom-scroll">
+                            {/* واجهة الرئيسية */}
+                            {activeTab === 'home' && (
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-in">
+                                    <div className="glass p-10 rounded-[3rem] col-span-2 relative overflow-hidden group">
+                                        <div className="relative z-10">
+                                            <h3 className="text-4xl font-black text-white mb-4">أهلاً بك دكتور 👋</h3>
+                                            <p className="text-slate-400 max-w-md leading-relaxed">النظام يعمل بكفاءة عالية. لديك اليوم {patients.length} مريض مسجل موزعين على {folders.length} تخصصات مختلفة.</p>
                                         </div>
-                                    ))}
+                                        <Icon name="activity" size={200} className="absolute -right-10 -bottom-10 text-white/5 group-hover:text-blue-500/10 transition-colors"/>
+                                    </div>
+                                    <div className="glass p-10 rounded-[3rem] flex flex-col justify-center items-center text-center">
+                                        <div className="text-6xl font-black text-blue-500 mb-2">{patients.length}</div>
+                                        <p className="text-slate-500 font-black uppercase text-xs tracking-widest">إجمالي المرضى</p>
+                                    </div>
                                 </div>
                             )}
 
-                            {/* 2. قسم سجلات المرضى العامة */}
-                            {activeTab === 'records' && !selectedPatient && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in">
-                                    {filteredPatients.map(p => (
-                                        <div key={p.id} className="bg-[#0d111d] p-6 rounded-[2.5rem] border border-white/5 group hover:border-blue-500/30 transition-all shadow-xl">
-                                            <div className="flex gap-4 mb-6">
-                                                <div className="w-14 h-14 bg-blue-600/10 text-blue-500 rounded-2xl flex items-center justify-center text-2xl font-black">{p.name[0]}</div>
-                                                <div>
-                                                    <h4 className="text-white font-bold">{p.name}</h4>
-                                                    <span className="text-[10px] font-black text-blue-500 uppercase">{folders.find(f => f.id.toString() === p.folderId.toString())?.name || 'عام'}</span>
+                            {/* واجهة البحث المتطور */}
+                            {activeTab === 'search' && (
+                                <div className="max-w-4xl mx-auto animate-in">
+                                    <div className="relative mb-12">
+                                        <input 
+                                            autoFocus
+                                            type="text" 
+                                            placeholder="ابحث بالاسم، الهاتف، أو الرقم الطبي..." 
+                                            className="w-full bg-white/5 border border-white/10 rounded-[2.5rem] py-8 px-12 text-2xl text-white outline-none focus:border-blue-500/50 shadow-2xl transition-all"
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                        <Icon name="search" className="absolute left-10 top-8 text-blue-500" size={32}/>
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {searchTerm && filteredPatients.map(p => (
+                                            <div key={p.id} onClick={() => {setSelectedPatient(p); setActiveTab('records')}} className="glass p-6 rounded-3xl flex justify-between items-center hover:bg-white/5 cursor-pointer transition-all border border-transparent hover:border-blue-500/30">
+                                                <div className="flex items-center gap-6">
+                                                    <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white text-2xl font-black shadow-lg">{p.name[0]}</div>
+                                                    <div><h4 className="text-xl font-bold text-white">{p.name}</h4><p className="text-slate-500 text-sm">{p.phone}</p></div>
                                                 </div>
-                                            </div>
-                                            <button onClick={() => setSelectedPatient(p)} className="w-full bg-white/5 hover:bg-blue-600 py-3 rounded-2xl text-[11px] font-black transition-all border border-white/5">فتح السجل الكامل</button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            {/* داخل ملف تخصص معين */}
-                            {selectedFolder && (
-                                <div className="animate-in">
-                                    <button onClick={() => setSelectedFolder(null)} className="mb-6 text-slate-500 flex items-center gap-2 font-bold"><Icon name="arrow-right"/> العودة للملفات</button>
-                                    <h2 className="text-3xl font-black text-white mb-8">مرضى قسم: {selectedFolder.name}</h2>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        {patients.filter(p => p.folderId.toString() === selectedFolder.id.toString()).map(p => (
-                                            <div key={p.id} onClick={() => setSelectedPatient(p)} className="bg-[#0d111d] p-6 rounded-3xl border border-white/5 cursor-pointer hover:bg-white/5 transition-all">
-                                                <h4 className="text-white font-bold text-lg">{p.name}</h4>
-                                                <p className="text-slate-500 text-xs mt-2">{p.phone}</p>
+                                                <div className="text-left"><span className="bg-blue-500/10 text-blue-500 px-4 py-2 rounded-xl text-xs font-black uppercase">فتح الملف</span></div>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                             )}
 
-                            {/* الملف الطبي الشامل (تعديلاتك الاحترافية) */}
-                            {selectedPatient && (
-                                <div className="max-w-5xl mx-auto animate-in pb-20">
-                                    <button onClick={() => setSelectedPatient(null)} className="mb-6 text-slate-500 flex items-center gap-2 font-bold"><Icon name="arrow-right"/> رجوع للسجلات</button>
-                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-right">
-                                        {/* بطاقة المريض */}
-                                        <div className="bg-[#0d111d] p-8 rounded-[3rem] border border-white/5 h-fit shadow-2xl">
-                                            <div className="w-24 h-24 bg-blue-600 rounded-[2rem] mx-auto mb-6 flex items-center justify-center text-4xl text-white font-black">{selectedPatient.name[0]}</div>
-                                            <h3 className="text-2xl font-black text-white text-center mb-4">{selectedPatient.name}</h3>
-                                            <div className="flex justify-center">
-                                                <span className={`${selectedPatient.history[0]?.note.includes('حرج') ? 'text-red-500 bg-red-500/10' : 'text-green-500 bg-green-500/10'} px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter`}>
-                                                    {selectedPatient.history[0]?.note.includes('حرج') ? 'حالة حرجة' : 'حالة مستقرة'}
-                                                </span>
+                            {/* إدارة المجلدات */}
+                            {activeTab === 'folders' && (
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-in">
+                                    {folders.map(f => (
+                                        <div key={f.id} className="glass p-8 rounded-[2.5rem] relative group hover:border-blue-500/30 transition-all cursor-pointer">
+                                            <Icon name="folder" size={48} className="text-blue-600 mb-4 group-hover:scale-110 transition-transform"/>
+                                            <h3 className="text-white font-black text-xl">{f.name}</h3>
+                                            <p className="text-slate-500 text-xs mt-2 font-bold uppercase">{patients.filter(p => p.folderId.toString() === f.id.toString()).length} مريض مرتبط</p>
+                                        </div>
+                                    ))}
+                                    <button onClick={() => setIsFolderModal(true)} className="border-2 border-dashed border-white/10 rounded-[2.5rem] p-8 flex flex-col items-center justify-center text-slate-500 hover:border-blue-500 hover:text-white transition-all">
+                                        <Icon name="plus" size={32} className="mb-2"/> <span className="font-black text-sm">إنشاء ملف تخصص جديد</span>
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* سجلات المرضى (العرض الكامل) */}
+                            {activeTab === 'records' && !selectedPatient && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in">
+                                    {patients.map(p => (
+                                        <div key={p.id} onClick={() => setSelectedPatient(p)} className="glass p-8 rounded-[3rem] hover:bg-white/5 transition-all cursor-pointer relative overflow-hidden group border border-transparent hover:border-blue-500/20">
+                                            <div className="flex items-center gap-5 mb-6">
+                                                <div className="w-16 h-16 bg-blue-600/10 text-blue-500 rounded-2xl flex items-center justify-center text-3xl font-black">{p.name[0]}</div>
+                                                <div><h4 className="text-white font-black text-lg">{p.name}</h4><p className="text-slate-500 text-xs">{folders.find(f => f.id.toString() === p.folderId.toString())?.name || 'عام'}</p></div>
                                             </div>
-                                            <div className="mt-8 pt-8 border-t border-white/5 space-y-4">
-                                                <div className="flex justify-between text-sm"><span className="text-slate-500 font-bold">العمر:</span><span className="text-white font-black">{selectedPatient.age} سنة</span></div>
-                                                <div className="flex justify-between text-sm"><span className="text-slate-500 font-bold">الجوال:</span><span className="text-white font-black">{selectedPatient.phone}</span></div>
+                                            <div className="flex gap-2">
+                                                <span className="bg-white/5 px-4 py-2 rounded-xl text-[10px] font-black text-slate-400 uppercase">عمر: {p.age}</span>
+                                                <span className="bg-white/5 px-4 py-2 rounded-xl text-[10px] font-black text-slate-400 uppercase">دم: {p.bloodType}</span>
+                                            </div>
+                                            <Icon name="chevron-left" className="absolute bottom-8 left-8 text-slate-700 group-hover:text-blue-500 transition-colors"/>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* الملف الطبي الشخصي (نفس التصميم الاحترافي السابق) */}
+                            {selectedPatient && (
+                                <div className="animate-in max-w-6xl mx-auto">
+                                    <button onClick={() => setSelectedPatient(null)} className="mb-8 text-slate-500 hover:text-white flex items-center gap-2 font-black transition-all"><Icon name="arrow-right"/> العودة للقاعدة</button>
+                                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                                        {/* الجانب الأيمن: بيانات حيوية */}
+                                        <div className="lg:col-span-1 space-y-6">
+                                            <div className="glass p-8 rounded-[3rem] text-center shadow-2xl">
+                                                <div className="w-24 h-24 bg-blue-600 rounded-[2rem] mx-auto mb-6 flex items-center justify-center text-4xl text-white font-black shadow-xl shadow-blue-600/30">{selectedPatient.name[0]}</div>
+                                                <h3 className="text-2xl font-black text-white">{selectedPatient.name}</h3>
+                                                <div className="mt-8 space-y-4 text-right">
+                                                    <div className="flex justify-between items-center bg-white/5 p-4 rounded-2xl"><span className="text-slate-500 text-xs font-bold">فصيلة الدم</span><span className="text-red-500 font-black">{selectedPatient.bloodType}</span></div>
+                                                    <div className="flex justify-between items-center bg-white/5 p-4 rounded-2xl"><span className="text-slate-500 text-xs font-bold">الضغط</span><span className="text-blue-400 font-black">{selectedPatient.pressure || '—'}</span></div>
+                                                    <div className="flex justify-between items-center bg-white/5 p-4 rounded-2xl"><span className="text-slate-500 text-xs font-bold">الوزن</span><span className="text-white font-black">{selectedPatient.weight} كجم</span></div>
+                                                </div>
                                             </div>
                                         </div>
-                                        {/* التايم لاين المطور */}
-                                        <div className="lg:col-span-2 bg-[#0d111d] p-10 rounded-[3rem] border border-white/5 shadow-2xl">
-                                            <div className="flex justify-between items-center mb-10">
-                                                <h4 className="text-xl font-black text-white flex items-center gap-3"><Icon name="history" className="text-blue-500"/> سجل الزيارات</h4>
-                                                <button onClick={() => setIsVisitModal(true)} className="bg-blue-600 text-white px-5 py-2 rounded-xl text-xs font-black transition-all shadow-lg shadow-blue-600/20">➕ إضافة زيارة</button>
-                                            </div>
-                                            <div className="relative border-r-2 border-white/10 pr-8 mr-2 space-y-10">
+                                        {/* الجانب الأيسر: التطور */}
+                                        <div className="lg:col-span-3 glass p-10 rounded-[3.5rem] shadow-2xl relative">
+                                            <h4 className="text-2xl font-black text-white mb-10">الخط الزمني للحالة</h4>
+                                            <div className="relative border-r-2 border-white/5 pr-8 mr-2 space-y-8">
                                                 {selectedPatient.history.map((h, i) => (
-                                                    <div key={i} className="relative group">
-                                                        <div className="absolute -right-[42px] top-0 w-5 h-5 bg-blue-600 rounded-full border-4 border-[#070912]"></div>
-                                                        <div className="bg-white/[0.03] p-6 rounded-3xl border border-white/5 group-hover:bg-white/10 transition-all">
-                                                            <div className="flex justify-between mb-4"><span className="text-blue-500 font-black text-xs uppercase">{h.type}</span><span className="text-slate-500 text-[10px]">{h.date}</span></div>
-                                                            <div className="space-y-2">
-                                                                <p className="text-sm text-white font-bold">🩺 التشخيص: <span className="text-blue-300">{h.diagnosis}</span></p>
-                                                                <p className="text-sm text-slate-300 font-medium">💊 العلاج: {h.treatment || '—'}</p>
-                                                                <p className="text-sm text-slate-400 font-medium">🧪 فحوصات: {h.tests || '—'}</p>
-                                                                <p className="text-sm mt-4 text-slate-300 italic border-r-2 border-blue-600/40 pr-3 leading-relaxed">"{h.note}"</p>
-                                                            </div>
+                                                    <div key={i} className="relative">
+                                                        <div className="absolute -right-[42px] top-0 w-5 h-5 bg-blue-600 rounded-full border-4 border-[#05070a]"></div>
+                                                        <div className="bg-white/5 p-6 rounded-3xl border border-white/5">
+                                                            <div className="flex justify-between mb-2"><span className="text-blue-500 font-black text-[10px] uppercase">{h.type}</span><span className="text-slate-500 text-[10px] font-bold">{h.date}</span></div>
+                                                            <p className="text-white font-bold mb-2">🩺 {h.diagnosis}</p>
+                                                            <p className="text-slate-400 text-sm">{h.note}</p>
                                                         </div>
                                                     </div>
                                                 ))}
@@ -235,56 +243,83 @@
                         </div>
                     </main>
 
-                    {/* MODAL: إضافة زيارة احترافية (بدل الـ Prompt) */}
-                    {isVisitModal && (
-                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4 animate-in">
-                            <form onSubmit={handleAddNewVisit} className="bg-[#0d111d] w-full max-w-xl rounded-[3rem] p-10 border border-white/10 text-right">
-                                <h3 className="text-xl font-black text-white mb-6">تسجيل زيارة جديدة</h3>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <select className="col-span-2 bg-white/5 border border-white/10 rounded-xl p-4 text-white outline-none" value={visitData.type} onChange={e=>setVisitData({...visitData, type:e.target.value})}>
-                                        <option value="كشف">كشف جديد</option>
-                                        <option value="متابعة">متابعة دورية</option>
-                                        <option value="طوارئ">حالة طارئة</option>
-                                    </select>
-                                    <input placeholder="التشخيص الحالي" className="col-span-2 bg-white/5 border border-white/10 rounded-xl p-4 text-white outline-none" value={visitData.diagnosis} onChange={e=>setVisitData({...visitData, diagnosis:e.target.value})} />
-                                    <input placeholder="الخطة العلاجية" className="col-span-2 bg-white/5 border border-white/10 rounded-xl p-4 text-white outline-none" value={visitData.treatment} onChange={e=>setVisitData({...visitData, treatment:e.target.value})} />
-                                    <input placeholder="الفحوصات المطلوبة" className="col-span-2 bg-white/5 border border-white/10 rounded-xl p-4 text-white outline-none" value={visitData.tests} onChange={e=>setVisitData({...visitData, tests:e.target.value})} />
-                                    <textarea placeholder="ملاحظات الطبيب..." className="col-span-2 bg-white/5 border border-white/10 rounded-xl p-4 text-white h-24 outline-none" value={visitData.note} onChange={e=>setVisitData({...visitData, note:e.target.value})}></textarea>
-                                </div>
-                                <div className="flex gap-4 mt-6">
-                                    <button type="submit" className="flex-1 bg-blue-600 py-4 rounded-xl text-white font-bold hover:bg-blue-500 transition-all">حفظ الزيارة</button>
-                                    <button type="button" onClick={() => setIsVisitModal(false)} className="px-6 text-slate-500 font-bold">إلغاء</button>
-                                </div>
-                            </form>
-                        </div>
-                    )}
-
-                    {/* MODAL: إضافة مريض */}
+                    {/* MODAL: تسجيل مريض متطور جداً (Multi-Step) */}
                     {isPatientModal && (
-                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4 animate-in">
-                            <form onSubmit={handleAddPatient} className="bg-[#0d111d] w-full max-w-2xl rounded-[3.5rem] p-12 border border-white/10 text-right">
-                                <h3 className="text-2xl font-black text-white mb-8">تسجيل مريض جديد في النظام</h3>
-                                <div className="grid grid-cols-2 gap-4 mb-6">
-                                    <input placeholder="اسم المريض الرباعي" required className="col-span-2 bg-white/5 border border-white/10 rounded-2xl p-5 text-white outline-none focus:border-blue-500" value={formData.name} onChange={e => setFormData({...formData, name:e.target.value})} />
-                                    <input placeholder="رقم الجوال" className="bg-white/5 border border-white/10 rounded-2xl p-5 text-white outline-none" value={formData.phone} onChange={e => setFormData({...formData, phone:e.target.value})} />
-                                    <input placeholder="العمر" type="number" className="bg-white/5 border border-white/10 rounded-2xl p-5 text-white outline-none" value={formData.age} onChange={e => setFormData({...formData, age:e.target.value})} />
-                                    <select required className="col-span-2 bg-white/5 border border-white/10 rounded-2xl p-5 text-white outline-none" value={formData.folderId} onChange={e => setFormData({...formData, folderId:e.target.value})}>
-                                        <option value="">اربط المريض بملف مرض معين...</option>
-                                        {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                                    </select>
-                                    <textarea placeholder="ملاحظات أولية..." className="col-span-2 bg-white/5 border border-white/10 rounded-2xl p-5 text-white h-24 outline-none" value={formData.notes} onChange={e => setFormData({...formData, notes:e.target.value})}></textarea>
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-2xl p-6 animate-in">
+                            <form onSubmit={handleSavePatient} className="bg-[#0d111d] w-full max-w-4xl rounded-[4rem] p-12 border border-white/10 shadow-2xl overflow-hidden relative">
+                                <button type="button" onClick={() => setIsPatientModal(false)} className="absolute top-10 left-10 text-slate-500 hover:text-white transition-all"><Icon name="x" size={32}/></button>
+                                
+                                <div className="flex gap-4 mb-12">
+                                    {[1, 2, 3].map(s => (
+                                        <div key={s} className={`h-2 flex-1 rounded-full transition-all ${regStep >= s ? 'bg-blue-600' : 'bg-white/5'}`}></div>
+                                    ))}
                                 </div>
-                                <button type="submit" className="w-full bg-blue-600 py-5 rounded-3xl text-white font-black text-lg shadow-xl active:scale-95 transition-all">حفظ وتسكين الحالة</button>
+
+                                {regStep === 1 && (
+                                    <div className="animate-in text-right">
+                                        <h3 className="text-3xl font-black text-white mb-8">البيانات الشخصية والربط</h3>
+                                        <div className="grid grid-cols-2 gap-6">
+                                            <div className="col-span-2">
+                                                <label className="text-xs font-black text-slate-500 block mb-2 uppercase mr-2">الاسم الرباعي للمريض</label>
+                                                <input required className="input-style" value={formData.name} onChange={e=>setFormData({...formData, name:e.target.value})} placeholder="أدخل الاسم بالكامل..." />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-black text-slate-500 block mb-2 uppercase mr-2">رقم الجوال</label>
+                                                <input className="input-style" value={formData.phone} onChange={e=>setFormData({...formData, phone:e.target.value})} placeholder="05xxxxxxxx" />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-black text-slate-500 block mb-2 uppercase mr-2">تسكين في ملف تخصص</label>
+                                                <select required className="input-style" value={formData.folderId} onChange={e=>setFormData({...formData, folderId:e.target.value})}>
+                                                    <option value="">اختر الملف...</option>
+                                                    {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <button type="button" onClick={() => setRegStep(2)} className="mt-12 bg-blue-600 text-white w-full py-5 rounded-3xl font-black text-xl hover:bg-blue-500 shadow-xl shadow-blue-600/20 transition-all">التالي: المؤشرات الحيوية</button>
+                                    </div>
+                                )}
+
+                                {regStep === 2 && (
+                                    <div className="animate-in text-right text-white">
+                                        <h3 className="text-3xl font-black text-white mb-8">المؤشرات والقياسات الحيوية</h3>
+                                        <div className="grid grid-cols-3 gap-6">
+                                            <div><label className="text-xs font-bold text-slate-500 mr-2">العمر</label><input type="number" className="input-style" value={formData.age} onChange={e=>setFormData({...formData, age:e.target.value})} /></div>
+                                            <div><label className="text-xs font-bold text-slate-500 mr-2">فصيلة الدم</label><select className="input-style" value={formData.bloodType} onChange={e=>setFormData({...formData, bloodType:e.target.value})}><option>O+</option><option>O-</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>AB+</option><option>AB-</option></select></div>
+                                            <div><label className="text-xs font-bold text-slate-500 mr-2">الجنس</label><select className="input-style" value={formData.gender} onChange={e=>setFormData({...formData, gender:e.target.value})}><option>ذكر</option><option>أنثى</option></select></div>
+                                            <div><label className="text-xs font-bold text-slate-500 mr-2">الوزن (كجم)</label><input className="input-style" value={formData.weight} onChange={e=>setFormData({...formData, weight:e.target.value})} /></div>
+                                            <div><label className="text-xs font-bold text-slate-500 mr-2">الطول (سم)</label><input className="input-style" value={formData.height} onChange={e=>setFormData({...formData, height:e.target.value})} /></div>
+                                            <div><label className="text-xs font-bold text-slate-500 mr-2">ضغط الدم</label><input className="input-style" value={formData.pressure} onChange={e=>setFormData({...formData, pressure:e.target.value})} placeholder="120/80" /></div>
+                                        </div>
+                                        <div className="flex gap-4 mt-12">
+                                            <button type="button" onClick={() => setRegStep(1)} className="flex-1 bg-white/5 py-5 rounded-3xl font-black text-slate-400">السابق</button>
+                                            <button type="button" onClick={() => setRegStep(3)} className="flex-[2] bg-blue-600 text-white py-5 rounded-3xl font-black text-xl shadow-xl shadow-blue-600/20">التالي: التاريخ المرضي</button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {regStep === 3 && (
+                                    <div className="animate-in text-right">
+                                        <h3 className="text-3xl font-black text-white mb-8">التاريخ المرضي والملاحظات</h3>
+                                        <div className="space-y-6">
+                                            <div><label className="text-xs font-bold text-slate-500 mr-2 uppercase">الأمراض المزمنة (إن وجدت)</label><textarea className="input-style h-24" value={formData.chronicDiseases} onChange={e=>setFormData({...formData, chronicDiseases:e.target.value})} placeholder="مثلاً: سكري، ضغط، ربو..."></textarea></div>
+                                            <div><label className="text-xs font-bold text-slate-500 mr-2 uppercase">حساسية الأدوية</label><textarea className="input-style h-24" value={formData.allergies} onChange={e=>setFormData({...formData, allergies:e.target.value})} placeholder="مثلاً: حساسبة البنسلين..."></textarea></div>
+                                        </div>
+                                        <div className="flex gap-4 mt-12">
+                                            <button type="button" onClick={() => setRegStep(2)} className="flex-1 bg-white/5 py-5 rounded-3xl font-black text-slate-400">السابق</button>
+                                            <button type="submit" className="flex-[2] bg-green-600 text-white py-5 rounded-3xl font-black text-xl shadow-xl shadow-green-600/20">إتمام التسجيل وحفظ الملف</button>
+                                        </div>
+                                    </div>
+                                )}
                             </form>
                         </div>
                     )}
 
-                    {/* MODAL: إضافة ملف (تخصص) */}
+                    {/* MODAL: إضافة مجلد (تخصص) */}
                     {isFolderModal && (
-                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in">
-                            <form onSubmit={handleAddFolder} className="bg-[#0d111d] w-full max-w-md rounded-[3rem] p-10 border border-white/10 text-right shadow-2xl">
-                                <h3 className="text-xl font-black text-white mb-6">اسم ملف المرض (التخصص)</h3>
-                                <input placeholder="مثلاً: مرضى العظام..." required className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white outline-none focus:border-blue-500 mb-6" value={newFolderName} onChange={e => setNewFolderName(e.target.value)} />
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4 animate-in">
+                            <form onSubmit={(e) => { e.preventDefault(); handleAddFolder(e); }} className="bg-[#0d111d] w-full max-w-md rounded-[3rem] p-10 border border-white/10 text-right shadow-2xl">
+                                <h3 className="text-xl font-black text-white mb-6">اسم ملف المرض الجديد</h3>
+                                <input placeholder="مثلاً: قسم العظام..." required className="input-style mb-6" value={newFolderName} onChange={e => setNewFolderName(e.target.value)} />
                                 <div className="flex gap-4">
                                     <button type="submit" className="flex-1 bg-blue-600 py-4 rounded-2xl text-white font-black transition-all">إنشاء</button>
                                     <button type="button" onClick={() => setIsFolderModal(false)} className="px-6 text-slate-500 font-bold">إلغاء</button>
