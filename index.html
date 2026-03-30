@@ -1,223 +1,166 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ClinicaPRO | Intelligence Unit</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        body { font-family: 'Tajawal', sans-serif; background-color: #070912; color: #cbd5e1; overflow: hidden; }
-        .custom-scroll::-webkit-scrollbar { width: 4px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
-        .animate-in { animation: fadeIn 0.4s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClinicaPRO</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<style>
+body { font-family: sans-serif; background:#070912; color:#fff; }
+</style>
 </head>
+
 <body>
-    <div id="root"></div>
+<div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect } = React;
+<script type="text/babel">
+const { useState, useEffect } = React;
 
-        const Icon = ({ name, size = 18, className = "" }) => {
-            useEffect(() => { if(window.lucide) window.lucide.createIcons(); }, [name]);
-            return <i data-lucide={name} className={className} style={{ width: size, height: size }}></i>;
-        };
+function App(){
 
-        function App() {
-            const [patients, setPatients] = useState(() => JSON.parse(localStorage.getItem('c_p_data')) || []);
-            const [folders, setFolders] = useState(() => JSON.parse(localStorage.getItem('c_p_folders')) || ["سكري", "ضغط", "قلب"]);
-            const [activeTab, setActiveTab] = useState('dashboard');
-            const [sidebarOpen, setSidebarOpen] = useState(true);
-            const [isModalOpen, setIsModalOpen] = useState(false);
-            const [selectedPatient, setSelectedPatient] = useState(null);
-            const [formData, setFormData] = useState({ name: '', phone: '', age: '', status: 'Stable', diagnosis: 'سكري', history: [] });
+const [patients,setPatients]=useState(()=>JSON.parse(localStorage.getItem('data'))||[]);
+const [search,setSearch]=useState('');
+const [open,setOpen]=useState(false);
 
-            useEffect(() => {
-                localStorage.setItem('c_p_data', JSON.stringify(patients));
-                localStorage.setItem('c_p_folders', JSON.stringify(folders));
-            }, [patients, folders]);
+const [form,setForm]=useState({
+name:'',
+phone:'',
+age:'',
+diagnosis:'سكري',
+status:'Stable',
+history:[]
+});
 
-            const handleSave = (e) => {
-                e.preventDefault();
-                const newPatient = { 
-                    ...formData, 
-                    id: formData.id || Date.now(), 
-                    date: new Date().toLocaleDateString('ar-EG'),
-                    history: formData.history.length > 0 ? formData.history : [{date: 'اليوم', title: 'افتتاح الملف', note: 'تم تسجيل المريض بنجاح'}]
-                };
-                if(formData.id) setPatients(patients.map(p => p.id === newPatient.id ? newPatient : p));
-                else setPatients([newPatient, ...patients]);
-                setIsModalOpen(false);
-                setFormData({ name: '', phone: '', age: '', status: 'Stable', diagnosis: 'سكري', history: [] });
-            };
+useEffect(()=>{
+localStorage.setItem('data',JSON.stringify(patients));
+},[patients]);
 
-            return (
-                <div className="min-h-screen flex overflow-hidden" dir="rtl">
-                    
-                    {/* Sidebar */}
-                    <aside className={`bg-[#0d111d] border-l border-white/5 flex flex-col transition-all duration-500 ${sidebarOpen ? 'w-72' : 'w-0 opacity-0 overflow-hidden'}`}>
-                        <div className="p-8 flex-1">
-                            <div className="flex items-center gap-3 mb-12">
-                                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white"><Icon name="activity" size={24}/></div>
-                                <h1 className="font-black text-lg text-white">Clinica<span className="text-blue-500">PRO</span></h1>
-                            </div>
-                            <nav className="space-y-2">
-                                {[{id:'dashboard', icon:'layout-dashboard', l:'الرئيسية'}, {id:'folders', icon:'folder-medical', l:'سجلات الأمراض'}, {id:'records', icon:'users', l:'المرضى'}].map(t => (
-                                    <button key={t.id} onClick={() => {setActiveTab(t.id); setSelectedPatient(null)}} className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-all ${activeTab === t.id ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-white/5 text-slate-500'}`}>
-                                        <Icon name={t.icon}/> <span className="font-bold text-sm">{t.l}</span>
-                                    </button>
-                                ))}
-                            </nav>
-                        </div>
-                    </aside>
+const save=(e)=>{
+e.preventDefault();
 
-                    {/* Main Content */}
-                    <main className="flex-1 flex flex-col relative h-screen overflow-hidden">
-                        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="absolute top-6 right-6 z-50 w-10 h-10 bg-[#0d111d] border border-white/10 rounded-xl flex items-center justify-center text-blue-500"><Icon name={sidebarOpen ? "chevron-right" : "menu"} size={20}/></button>
+const newPatient={
+...form,
+id:form.id||Date.now(),
+history: form.history.length>0 ? form.history : [{
+date:new Date().toLocaleDateString(),
+type:'كشف',
+diagnosis:form.diagnosis,
+treatment:'',
+tests:'',
+note:'تم إنشاء الملف'
+}]
+};
 
-                        <header className="h-20 bg-[#070912]/80 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-8">
-                            <h2 className="text-white font-black text-xl">
-                                {activeTab === 'dashboard' && 'الذكاء الاصطناعي'}
-                                {activeTab === 'folders' && 'أرشيف الملفات'}
-                                {activeTab === 'records' && 'قاعدة البيانات'}
-                            </h2>
-                            <div className="flex gap-3">
-                                <button onClick={() => {setFormData({ name: '', phone: '', age: '', status: 'Stable', diagnosis: 'سكري', history: [] }); setIsModalOpen(true)}} className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-2xl font-black text-sm flex items-center gap-2">
-                                    <Icon name="plus" size={18}/> مريض جديد
-                                </button>
-                            </div>
-                        </header>
+if(form.id){
+setPatients(patients.map(p=>p.id===newPatient.id?newPatient:p));
+}else{
+setPatients([newPatient,...patients]);
+}
 
-                        <div className="flex-1 overflow-y-auto p-8 custom-scroll">
-                            {selectedPatient ? (
-                                /* الملف الطبي الشامل */
-                                <div className="max-w-5xl mx-auto animate-in pb-20">
-                                    <button onClick={() => setSelectedPatient(null)} className="mb-6 text-slate-500 hover:text-white flex items-center gap-2 font-bold"><Icon name="arrow-right"/> رجوع</button>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                        <div className="space-y-6">
-                                            <div className="bg-[#0d111d] p-8 rounded-[3rem] border border-white/5 text-center">
-                                                <div className="w-24 h-24 bg-blue-600 rounded-[2rem] mx-auto mb-4 flex items-center justify-center text-3xl font-black text-white shadow-xl shadow-blue-600/20">{selectedPatient.name[0]}</div>
-                                                <h3 className="text-xl font-black text-white">{selectedPatient.name}</h3>
-                                                <div className="mt-4 flex flex-wrap justify-center gap-2">
-                                                    <span className="bg-blue-500/10 text-blue-500 px-3 py-1 rounded-full text-[10px] font-black uppercase">{selectedPatient.diagnosis}</span>
-                                                    <span className="bg-green-500/10 text-green-500 px-3 py-1 rounded-full text-[10px] font-black uppercase">{selectedPatient.status}</span>
-                                                </div>
-                                            </div>
-                                            <div className="bg-[#0d111d] p-6 rounded-[2rem] border border-white/5 space-y-4">
-                                                <p className="text-white text-sm font-bold border-b border-white/5 pb-2">بيانات المريض</p>
-                                                <div className="flex justify-between text-xs"><span className="text-slate-500">العمر</span><span className="text-white font-black">{selectedPatient.age} سنة</span></div>
-                                                <div className="flex justify-between text-xs"><span className="text-slate-500">الجوال</span><span className="text-white font-black">{selectedPatient.phone}</span></div>
-                                            </div>
-                                        </div>
-                                        <div className="md:col-span-2 space-y-6">
-                                            <div className="bg-[#0d111d] p-8 rounded-[3rem] border border-white/5">
-                                                <h4 className="text-white font-black mb-8 flex items-center gap-2"><Icon name="clock-3" className="text-blue-500"/> تاريخ التطور (Timeline)</h4>
-                                                <div className="relative border-r border-white/10 pr-6 mr-2 space-y-8">
-                                                    {selectedPatient.history.map((h, i) => (
-                                                        <div key={i} className="relative">
-                                                            <div className="absolute -right-[30px] top-0 w-3 h-3 bg-blue-500 rounded-full"></div>
-                                                            <div className="bg-white/5 p-5 rounded-2xl border border-white/5">
-                                                                <div className="flex justify-between mb-2"><span className="text-blue-400 font-black text-[10px]">{h.title}</span><span className="text-slate-500 text-[10px]">{h.date}</span></div>
-                                                                <p className="text-slate-300 text-sm">{h.note}</p>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="max-w-7xl mx-auto">
-                                    {/* تبويب المجلدات (نفس الخانات السابقة) */}
-                                    {activeTab === 'folders' && (
-                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-in">
-                                            {folders.map(folder => (
-                                                <div key={folder} className="bg-[#0d111d] p-8 rounded-[2.5rem] border border-white/5 hover:border-blue-500/30 transition-all cursor-pointer group" onClick={() => setActiveTab('records')}>
-                                                    <Icon name="folder" size={40} className="text-blue-600 mb-4 group-hover:scale-110 transition-transform"/>
-                                                    <h3 className="text-white font-black text-lg">{folder}</h3>
-                                                    <p className="text-slate-500 text-[10px] mt-2 font-bold uppercase">{patients.filter(p => p.diagnosis === folder).length} ملف مريض</p>
-                                                </div>
-                                            ))}
-                                            <button className="border-2 border-dashed border-white/5 rounded-[2.5rem] p-8 flex flex-col items-center justify-center text-slate-500 hover:border-blue-500 hover:text-white transition-all">
-                                                <Icon name="plus" size={30} className="mb-2"/> <span className="font-black text-xs">إضافة ملف مرض</span>
-                                            </button>
-                                        </div>
-                                    )}
+setOpen(false);
+setForm({name:'',phone:'',age:'',diagnosis:'سكري',status:'Stable',history:[]});
+};
 
-                                    {/* تبويب السجلات العام */}
-                                    {activeTab === 'records' && (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in">
-                                            {patients.map(p => (
-                                                <div key={p.id} className="bg-[#0d111d] p-6 rounded-[2.5rem] border border-white/5 relative group transition-all hover:border-blue-500/30">
-                                                    <div className="flex gap-4 mb-6">
-                                                        <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-black text-2xl">{p.name[0]}</div>
-                                                        <div><h4 className="text-white font-bold text-lg">{p.name}</h4><span className="text-[10px] font-black text-blue-500 uppercase">{p.diagnosis} | {p.status}</span></div>
-                                                    </div>
-                                                    <div className="flex gap-2">
-                                                        <button onClick={() => setSelectedPatient(p)} className="flex-1 bg-white/5 hover:bg-blue-600 py-3 rounded-2xl text-[11px] font-black transition-all border border-white/5">الملف الطبي الكامل</button>
-                                                        <button onClick={() => {setFormData(p); setIsModalOpen(true)}} className="p-3 bg-white/5 rounded-2xl hover:text-blue-500 border border-white/5"><Icon name="edit-2" size={16}/></button>
-                                                        <button onClick={() => setPatients(patients.filter(it => it.id !== p.id))} className="p-3 bg-white/5 rounded-2xl hover:text-red-500 border border-white/5"><Icon name="trash-2" size={16}/></button>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
+return(
+<div className="p-6">
 
-                                    {/* لوحة التحكم */}
-                                    {activeTab === 'dashboard' && (
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in">
-                                            <div className="bg-[#0d111d] p-8 rounded-[2.5rem] border border-white/5">
-                                                <p className="text-[10px] font-black text-slate-500 uppercase mb-2">إجمالي المسجلين</p>
-                                                <div className="text-5xl font-black text-blue-500">{patients.length}</div>
-                                            </div>
-                                            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 rounded-[2.5rem] relative overflow-hidden md:col-span-2 shadow-2xl shadow-blue-600/20">
-                                                <div className="relative z-10"><h3 className="text-2xl font-black text-white">الذكاء الطبي النشط</h3><p className="text-blue-100 opacity-80 text-sm mt-2">النظام يقوم الآن بتصنيف المرضى حسب التاريخ المرضي وتطور الحالة.</p></div>
-                                                <Icon name="cpu" size={150} className="absolute -right-10 -bottom-10 opacity-10 text-white"/>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    </main>
+<h1 className="text-2xl mb-6">ClinicaPRO</h1>
 
-                    {/* Modal المطور للإضافة */}
-                    {isModalOpen && (
-                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4 animate-in">
-                            <div className="bg-[#0d111d] w-full max-w-xl rounded-[3rem] p-10 border border-white/10 relative shadow-2xl">
-                                <button onClick={() => setIsModalOpen(false)} className="absolute top-8 left-8 text-slate-500 hover:text-white"><Icon name="x"/></button>
-                                <h3 className="text-2xl font-black text-white mb-8">{formData.id ? 'تعديل السجل' : 'إضافة مريض جديد للمنظومة'}</h3>
-                                <form onSubmit={handleSave} className="space-y-4">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <input placeholder="اسم المريض" required className="col-span-2 w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-500" value={formData.name} onChange={e => setFormData({...formData, name:e.target.value})} />
-                                        <input placeholder="رقم الهاتف" className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-500" value={formData.phone} onChange={e => setFormData({...formData, phone:e.target.value})} />
-                                        <input placeholder="العمر" type="number" className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-500" value={formData.age} onChange={e => setFormData({...formData, age:e.target.value})} />
-                                        <select className="col-span-1 w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none" value={formData.diagnosis} onChange={e => setFormData({...formData, diagnosis:e.target.value})}>
-                                            {folders.map(f => <option key={f} value={f}>{f}</option>)}
-                                        </select>
-                                        <select className="col-span-1 w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none" value={formData.status} onChange={e => setFormData({...formData, status:e.target.value})}>
-                                            <option value="Stable">مستقر</option>
-                                            <option value="Critical">حرج</option>
-                                        </select>
-                                    </div>
-                                    <button type="submit" className="w-full bg-blue-600 py-5 rounded-[2rem] text-white font-black text-lg shadow-lg mt-4">حفظ البيانات بالكامل</button>
-                                </form>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            );
-        }
+<button onClick={()=>setOpen(true)} className="bg-blue-600 px-4 py-2 rounded mb-6">
+إضافة مريض
+</button>
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
+<input
+placeholder="بحث..."
+className="w-full mb-6 p-3 rounded bg-black"
+value={search}
+onChange={e=>setSearch(e.target.value)}
+/>
+
+<div className="grid gap-4">
+
+{patients
+.filter(p=>
+p.name.includes(search)||
+p.phone.includes(search)||
+p.diagnosis.includes(search)
+)
+.map(p=>(
+
+<div key={p.id} className="bg-black p-4 rounded">
+
+<h2>{p.name}</h2>
+<p>{p.diagnosis}</p>
+
+<div className="mt-4">
+{p.history.map((h,i)=>(
+<div key={i} className="border p-3 mb-2 rounded">
+
+<div>{h.date} - {h.type}</div>
+<div>🩺 {h.diagnosis}</div>
+<div>💊 {h.treatment}</div>
+<div>🧪 {h.tests}</div>
+<div>{h.note}</div>
+
+</div>
+))}
+</div>
+
+</div>
+
+))}
+
+</div>
+
+{open&&(
+<div className="fixed inset-0 bg-black flex items-center justify-center">
+
+<form onSubmit={save} className="bg-white text-black p-6 rounded w-80">
+
+<input placeholder="الاسم" required
+value={form.name}
+onChange={e=>setForm({...form,name:e.target.value})}
+className="w-full mb-2 p-2 border"/>
+
+<input placeholder="الهاتف"
+value={form.phone}
+onChange={e=>setForm({...form,phone:e.target.value})}
+className="w-full mb-2 p-2 border"/>
+
+<input placeholder="العمر"
+value={form.age}
+onChange={e=>setForm({...form,age:e.target.value})}
+className="w-full mb-2 p-2 border"/>
+
+<select
+value={form.diagnosis}
+onChange={e=>setForm({...form,diagnosis:e.target.value})}
+className="w-full mb-2 p-2 border">
+<option>سكري</option>
+<option>ضغط</option>
+<option>قلب</option>
+</select>
+
+<button className="bg-blue-600 text-white w-full p-2 mt-2">
+حفظ
+</button>
+
+</form>
+
+</div>
+)}
+
+</div>
+);
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+
 </body>
 </html>
