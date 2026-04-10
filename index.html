@@ -3,305 +3,430 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ClinicaPRO | v4.0</title>
+    <title>CLINICAL - Pro Dark</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        body { font-family: 'Tajawal', sans-serif; background-color: #05070a; color: #cbd5e1; overflow: hidden; }
-        .custom-scroll::-webkit-scrollbar { width: 4px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
-        .animate-in { animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .glass { background: rgba(13, 17, 29, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.05); }
-        .input-style { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 1.25rem; padding: 1rem 1.25rem; color: white; outline: none; transition: all 0.3s; width: 100%; text-align: right; }
-        .input-style:focus { border-color: #3b82f6; background: rgba(255,255,255,0.06); }
-    </style>
-</head>
-<body>
-    <div id="root"></div>
-
-    <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
-
-        // مكون الأيقونات مع معالجة الأخطاء
-        const Icon = ({ name, size = 18, className = "" }) => {
-            useEffect(() => {
-                if (window.lucide) window.lucide.createIcons();
-            }, [name]);
-            return <i data-lucide={name} className={className} style={{ width: size, height: size }}></i>;
-        };
-
-        function App() {
-            // البيانات الأساسية
-            const [folders, setFolders] = useState(() => JSON.parse(localStorage.getItem('cp_folders')) || [{id: 1, name: 'عام'}]);
-            const [patients, setPatients] = useState(() => JSON.parse(localStorage.getItem('cp_patients')) || []);
-            const [activeTab, setActiveTab] = useState('home');
-            const [searchTerm, setSearchTerm] = useState('');
-            const [sidebarOpen, setSidebarOpen] = useState(true);
-
-            // حالات النوافذ المنبثقة
-            const [isPatientModal, setIsPatientModal] = useState(false);
-            const [isFolderModal, setIsFolderModal] = useState(false);
-            const [selectedPatient, setSelectedPatient] = useState(null);
-            const [newFolderName, setNewFolderName] = useState('');
-            
-            // حالة تسجيل مريض جديد
-            const [regStep, setRegStep] = useState(1);
-            const [formData, setFormData] = useState({
-                name: '', phone: '', age: '', gender: 'ذكر', folderId: '',
-                bloodType: 'O+', weight: '', height: '', pressure: '',
-                chronicDiseases: '', allergies: '', notes: ''
-            });
-
-            // حفظ البيانات تلقائياً
-            useEffect(() => {
-                localStorage.setItem('cp_folders', JSON.stringify(folders));
-                localStorage.setItem('cp_patients', JSON.stringify(patients));
-                if (window.lucide) window.lucide.createIcons();
-            }, [folders, patients, activeTab, isPatientModal, isFolderModal]);
-
-            // دالة إضافة مجلد (قسم)
-            const handleAddFolder = (e) => {
-                e.preventDefault();
-                if (!newFolderName.trim()) return;
-                const newF = { id: Date.now(), name: newFolderName };
-                setFolders([...folders, newF]);
-                setNewFolderName('');
-                setIsFolderModal(false);
-            };
-
-            // دالة حذف مريض
-            const handleDeletePatient = (id) => {
-                if (window.confirm('هل أنت متأكد من حذف هذا المريض نهائياً؟')) {
-                    setPatients(patients.filter(p => p.id !== id));
-                    if (selectedPatient && selectedPatient.id === id) setSelectedPatient(null);
-                }
-            };
-
-            // دالة حفظ المريض
-            const handleSavePatient = (e) => {
-                e.preventDefault();
-                const folderName = folders.find(f => f.id.toString() === formData.folderId.toString())?.name || 'عام';
-                const newP = {
-                    ...formData,
-                    id: Date.now(),
-                    date: new Date().toLocaleDateString('ar-EG'),
-                    history: [{
-                        date: new Date().toLocaleDateString('ar-EG'),
-                        type: 'تسجيل أولي',
-                        diagnosis: 'فتح ملف جديد في قسم ' + folderName,
-                        treatment: 'مؤشرات حيوية أساسية',
-                        note: formData.notes || 'تم إنشاء الملف بنجاح'
-                    }]
-                };
-                setPatients([newP, ...patients]);
-                setIsPatientModal(false);
-                setRegStep(1);
-                setFormData({ name: '', phone: '', age: '', gender: 'ذكر', folderId: '', bloodType: 'O+', weight: '', height: '', pressure: '', chronicDiseases: '', allergies: '', notes: '' });
-            };
-
-            const filteredPatients = useMemo(() => {
-                return patients.filter(p => p.name.includes(searchTerm) || p.phone.includes(searchTerm));
-            }, [patients, searchTerm]);
-
-            return (
-                <div className="min-h-screen flex" dir="rtl">
-                    {/* Sidebar */}
-                    <aside className={`glass border-l border-white/5 transition-all duration-500 flex flex-col ${sidebarOpen ? 'w-80' : 'w-0 opacity-0 overflow-hidden'}`}>
-                        <div className="p-8">
-                            <div className="flex items-center gap-4 mb-12">
-                                <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-600/30"><Icon name="activity" size={28}/></div>
-                                <div><h1 className="font-black text-xl text-white">Clinica<span className="text-blue-500">PRO</span></h1><p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Medical OS v4.0</p></div>
-                            </div>
-                            <nav className="space-y-2">
-                                {[
-                                    {id:'home', icon:'layout-grid', l:'الرئيسية'},
-                                    {id:'search', icon:'search', l:'البحث المتقدم'},
-                                    {id:'folders', icon:'folder-plus', l:'إدارة الأقسام'},
-                                    {id:'records', icon:'users', l:'سجلات المرضى'}
-                                ].map(t => (
-                                    <button key={t.id} onClick={() => {setActiveTab(t.id); setSelectedPatient(null)}} className={`w-full flex items-center gap-4 px-5 py-4 rounded-[1.5rem] transition-all ${activeTab === t.id ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-white/5'}`}>
-                                        <Icon name={t.icon} size={20}/> <span className="font-bold text-sm">{t.l}</span>
-                                    </button>
-                                ))}
-                            </nav>
-                        </div>
-                    </aside>
-
-                    <main className="flex-1 flex flex-col relative h-screen overflow-hidden">
-                        <header className="h-24 px-10 flex items-center justify-between border-b border-white/5 glass">
-                            <div className="flex items-center gap-6 flex-1">
-                                <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-3 hover:bg-white/5 rounded-2xl text-blue-500 transition-all"><Icon name="menu"/></button>
-                                <h2 className="text-white font-black text-2xl tracking-tighter">
-                                    {activeTab === 'home' && 'لوحة القيادة'}
-                                    {activeTab === 'search' && 'وحدة البحث'}
-                                    {activeTab === 'folders' && 'الأقسام الطبية'}
-                                    {activeTab === 'records' && 'قاعدة بيانات المرضى'}
-                                </h2>
-                            </div>
-                            <button onClick={() => setIsPatientModal(true)} className="bg-white text-black px-8 py-3.5 rounded-2xl font-black text-sm flex items-center gap-3 hover:bg-blue-600 hover:text-white transition-all transform active:scale-95 shadow-xl">
-                                <Icon name="user-plus" size={20}/> تسجيل مريض جديد
-                            </button>
-                        </header>
-
-                        <div className="flex-1 overflow-y-auto p-10 custom-scroll">
-                            {/* الرئيسية */}
-                            {activeTab === 'home' && (
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-in">
-                                    <div className="glass p-10 rounded-[3rem] col-span-2 relative overflow-hidden">
-                                        <h3 className="text-4xl font-black text-white mb-4">أهلاً بك دكتور 👋</h3>
-                                        <p className="text-slate-400 max-w-md">النظام يعمل بكفاءة. لديك {patients.length} مريض و {folders.length} أقسام تخصصية.</p>
-                                        <Icon name="activity" size={150} className="absolute -right-5 -bottom-5 text-white/5"/>
-                                    </div>
-                                    <div className="glass p-10 rounded-[3rem] flex flex-col justify-center items-center">
-                                        <div className="text-6xl font-black text-blue-500 mb-2">{patients.length}</div>
-                                        <p className="text-slate-500 font-bold uppercase text-xs">إجمالي المرضى</p>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* البحث */}
-                            {activeTab === 'search' && (
-                                <div className="max-w-4xl mx-auto animate-in">
-                                    <div className="relative mb-8">
-                                        <input type="text" placeholder="ابحث بالاسم أو الهاتف..." className="input-style !py-8 !px-12 !text-2xl" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                                        <Icon name="search" className="absolute left-10 top-8 text-blue-500" size={32}/>
-                                    </div>
-                                    <div className="space-y-4">
-                                        {searchTerm && filteredPatients.map(p => (
-                                            <div key={p.id} onClick={() => {setSelectedPatient(p); setActiveTab('records')}} className="glass p-6 rounded-3xl flex justify-between items-center cursor-pointer hover:border-blue-500/50 transition-all">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center font-bold text-white">{p.name[0]}</div>
-                                                    <div><h4 className="text-white font-bold">{p.name}</h4><p className="text-slate-500 text-sm">{p.phone}</p></div>
-                                                </div>
-                                                <Icon name="chevron-left" className="text-slate-600"/>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* المجلدات */}
-                            {activeTab === 'folders' && (
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-in">
-                                    {folders.map(f => (
-                                        <div key={f.id} className="glass p-8 rounded-[2.5rem] group hover:border-blue-500/30 transition-all">
-                                            <Icon name="folder" size={40} className="text-blue-500 mb-4"/>
-                                            <h3 className="text-white font-bold text-lg">{f.name}</h3>
-                                            <p className="text-slate-500 text-xs mt-2">{patients.filter(p => p.folderId.toString() === f.id.toString()).length} مريض</p>
-                                        </div>
-                                    ))}
-                                    <button onClick={() => setIsFolderModal(true)} className="border-2 border-dashed border-white/10 rounded-[2.5rem] p-8 flex flex-col items-center justify-center text-slate-500 hover:text-white hover:border-blue-500 transition-all">
-                                        <Icon name="plus" size={32} className="mb-2"/> <span className="font-bold">قسم جديد</span>
-                                    </button>
-                                </div>
-                            )}
-
-                            {/* سجلات المرضى */}
-                            {activeTab === 'records' && !selectedPatient && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in">
-                                    {patients.map(p => (
-                                        <div key={p.id} className="glass p-8 rounded-[3rem] relative group border border-transparent hover:border-blue-500/20">
-                                            <div onClick={() => setSelectedPatient(p)} className="cursor-pointer">
-                                                <div className="flex items-center gap-4 mb-6">
-                                                    <div className="w-14 h-14 bg-blue-600/10 text-blue-500 rounded-2xl flex items-center justify-center text-2xl font-black">{p.name[0]}</div>
-                                                    <div><h4 className="text-white font-bold">{p.name}</h4><p className="text-slate-500 text-xs">عمر: {p.age}</p></div>
-                                                </div>
-                                            </div>
-                                            <button onClick={() => handleDeletePatient(p.id)} className="absolute top-8 left-8 text-slate-700 hover:text-red-500 transition-colors">
-                                                <Icon name="trash-2" size={18}/>
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            {/* الملف الشخصي للمريض */}
-                            {selectedPatient && (
-                                <div className="animate-in max-w-5xl mx-auto">
-                                    <div className="flex justify-between items-center mb-8">
-                                        <button onClick={() => setSelectedPatient(null)} className="text-slate-500 hover:text-white flex items-center gap-2 font-bold"><Icon name="arrow-right"/> عودة</button>
-                                        <button onClick={() => handleDeletePatient(selectedPatient.id)} className="bg-red-500/10 text-red-500 px-6 py-2 rounded-xl text-xs font-bold hover:bg-red-500 hover:text-white transition-all">حذف الملف</button>
-                                    </div>
-                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                        <div className="glass p-8 rounded-[3rem] text-center">
-                                            <div className="w-20 h-20 bg-blue-600 rounded-3xl mx-auto mb-4 flex items-center justify-center text-3xl text-white font-black">{selectedPatient.name[0]}</div>
-                                            <h3 className="text-2xl font-bold text-white">{selectedPatient.name}</h3>
-                                            <p className="text-slate-500 mt-2">{selectedPatient.phone}</p>
-                                            <div className="mt-6 space-y-2">
-                                                <div className="flex justify-between p-3 bg-white/5 rounded-xl"><span>فصيلة الدم</span><span className="text-red-500 font-bold">{selectedPatient.bloodType}</span></div>
-                                                <div className="flex justify-between p-3 bg-white/5 rounded-xl"><span>الوزن</span><span className="text-white font-bold">{selectedPatient.weight} كجم</span></div>
-                                            </div>
-                                        </div>
-                                        <div className="lg:col-span-2 glass p-8 rounded-[3rem]">
-                                            <h4 className="text-xl font-bold text-white mb-6">التاريخ الطبي</h4>
-                                            {selectedPatient.history.map((h, i) => (
-                                                <div key={i} className="border-r-2 border-blue-600/20 pr-6 pb-6 relative">
-                                                    <div className="absolute -right-[9px] top-0 w-4 h-4 bg-blue-600 rounded-full"></div>
-                                                    <div className="bg-white/5 p-4 rounded-2xl">
-                                                        <div className="flex justify-between text-xs mb-2 text-slate-500"><span>{h.type}</span><span>{h.date}</span></div>
-                                                        <p className="text-white font-bold">{h.diagnosis}</p>
-                                                        <p className="text-slate-400 text-sm mt-1">{h.note}</p>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </main>
-
-                    {/* نافذة تسجيل مريض */}
-                    {isPatientModal && (
-                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-6">
-                            <form onSubmit={handleSavePatient} className="bg-[#0d111d] w-full max-w-2xl rounded-[3rem] p-10 border border-white/10 relative">
-                                <button type="button" onClick={() => setIsPatientModal(false)} className="absolute top-8 left-8 text-slate-500 hover:text-white"><Icon name="x" size={28}/></button>
-                                <h3 className="text-2xl font-black text-white mb-8">تسجيل مريض جديد</h3>
-                                
-                                <div className="space-y-6">
-                                    <input required className="input-style" placeholder="اسم المريض بالكامل" value={formData.name} onChange={e=>setFormData({...formData, name:e.target.value})} />
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <select required className="input-style" value={formData.folderId} onChange={e=>setFormData({...formData, folderId:e.target.value})}>
-                                            <option value="">اختر القسم التخصصي...</option>
-                                            {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                                        </select>
-                                        <input className="input-style" placeholder="رقم الجوال" value={formData.phone} onChange={e=>setFormData({...formData, phone:e.target.value})} />
-                                    </div>
-                                    <div className="grid grid-cols-3 gap-4">
-                                        <input className="input-style" placeholder="العمر" type="number" value={formData.age} onChange={e=>setFormData({...formData, age:e.target.value})} />
-                                        <input className="input-style" placeholder="الوزن" value={formData.weight} onChange={e=>setFormData({...formData, weight:e.target.value})} />
-                                        <select className="input-style" value={formData.bloodType} onChange={e=>setFormData({...formData, bloodType:e.target.value})}><option>O+</option><option>A+</option><option>B+</option><option>AB+</option></select>
-                                    </div>
-                                </div>
-                                <button type="submit" className="mt-8 bg-blue-600 text-white w-full py-4 rounded-2xl font-bold text-lg shadow-lg shadow-blue-600/20 transition-all hover:bg-blue-500">حفظ ملف المريض</button>
-                            </form>
-                        </div>
-                    )}
-
-                    {/* نافذة إضافة قسم */}
-                    {isFolderModal && (
-                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
-                            <form onSubmit={handleAddFolder} className="bg-[#0d111d] w-full max-w-md rounded-[2.5rem] p-8 border border-white/10">
-                                <h3 className="text-xl font-bold text-white mb-6">إنشاء قسم تخصصي جديد</h3>
-                                <input autoFocus required className="input-style mb-6" placeholder="مثلاً: عيادة الباطنية" value={newFolderName} onChange={e => setNewFolderName(e.target.value)} />
-                                <div className="flex gap-4">
-                                    <button type="submit" className="flex-1 bg-blue-600 py-4 rounded-2xl text-white font-bold">إنشاء القسم</button>
-                                    <button type="button" onClick={() => setIsFolderModal(false)} className="px-6 text-slate-500">إلغاء</button>
-                                </div>
-                            </form>
-                        </div>
-                    )}
-                </div>
-            );
+        :root {
+            --bg-dark: #020617;
+            --card-dark: #0f172a;
+            --border-dark: #1e293b;
+            --text-main: #f1f5f9;
+        }
+        body { 
+            font-family: 'Cairo', sans-serif; 
+            background-color: var(--bg-dark); 
+            color: var(--text-main);
+            overflow: hidden; 
+        }
+        
+        .sidebar-transition { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .sidebar-expanded { width: 260px; }
+        .sidebar-collapsed { width: 80px; }
+        .sidebar-collapsed .nav-text, .sidebar-collapsed .logo-text { display: none; }
+        
+        .active-nav { 
+            background: linear-gradient(to left, #2563eb, #1d4ed8); 
+            color: white; 
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        .modal-overlay { 
+            background: rgba(0, 0, 0, 0.85); 
+            backdrop-filter: blur(8px); 
+        }
+        .modal-content {
+            background-color: var(--card-dark);
+            border: 1px solid var(--border-dark);
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+        ::-webkit-scrollbar-thumb { background: var(--border-dark); border-radius: 10px; }
+        
+        .view-content { animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        input, select, textarea {
+            background-color: #1e293b !important;
+            border: 1px solid #334155 !important;
+            color: white !important;
+        }
+    </style>
+</head>
+<body class="flex h-screen">
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar-expanded bg-[#020617] border-l border-slate-900 text-slate-400 flex flex-col sidebar-transition relative z-50">
+        <div class="p-6 border-b border-slate-900 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-600 p-2 rounded-lg text-white font-black">CL</div>
+                <span class="logo-text text-xl font-black text-white tracking-tighter">CLINICAL</span>
+            </div>
+        </div>
+        
+        <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+            <button onclick="router.navigate('dashboard')" class="nav-item active-nav w-full flex items-center gap-4 p-3.5 transition-all">
+                <span class="text-xl">📊</span><span class="nav-text font-bold">لوحة التحكم</span>
+            </button>
+            <button onclick="router.navigate('patients')" class="nav-item w-full flex items-center gap-4 p-3.5 transition-all">
+                <span class="text-xl">👥</span><span class="nav-text font-bold">سجل المرضى</span>
+            </button>
+            <button onclick="router.navigate('departments')" class="nav-item w-full flex items-center gap-4 p-3.5 transition-all">
+                <span class="text-xl">📁</span><span class="nav-text font-bold text-blue-400">الأقسام</span>
+            </button>
+            <div class="h-px bg-slate-900 my-4"></div>
+            <button onclick="router.navigate('pharmacy')" class="nav-item w-full flex items-center gap-4 p-3.5 transition-all">
+                <span class="text-xl">💊</span><span class="nav-text font-bold text-emerald-400">الصيدلية</span>
+            </button>
+            <button onclick="router.navigate('lab')" class="nav-item w-full flex items-center gap-4 p-3.5 transition-all">
+                <span class="text-xl">🧪</span><span class="nav-text font-bold text-amber-500">المختبر</span>
+            </button>
+            <button onclick="router.navigate('appointments')" class="nav-item w-full flex items-center gap-4 p-3.5 transition-all">
+                <span class="text-xl">📅</span><span class="nav-text font-bold text-purple-400">المواعيد</span>
+            </button>
+        </nav>
+
+        <!-- Social & Toggle Actions -->
+        <div class="p-4 border-t border-slate-900 space-y-3">
+            <a href="https://instagram.com/gencazai" target="_blank" class="w-full flex items-center justify-center p-3 rounded-xl bg-gradient-to-tr from-yellow-500 via-red-500 to-purple-600 text-white hover:opacity-80 transition-opacity">
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                </svg>
+            </a>
+            <button onclick="toggleSidebar()" class="w-full p-3 bg-slate-900 rounded-xl hover:bg-slate-800 transition-colors flex justify-center text-white">
+                <span id="toggle-icon">⇄</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <header class="h-16 border-b border-slate-900 flex justify-between items-center px-8 bg-[#020617]/50 backdrop-blur-xl">
+            <h2 id="page-title" class="text-lg font-black">لوحة التحكم</h2>
+            <div class="flex items-center gap-4">
+                <div class="text-[10px] font-black px-3 py-1 bg-blue-500/10 text-blue-500 rounded-full border border-blue-500/20 uppercase tracking-widest">System Online</div>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-6 md:p-10">
+            <!-- Dashboard View -->
+            <section id="view-dashboard" class="view-content grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div class="bg-[#0f172a] p-8 rounded-3xl border border-slate-800">
+                    <p class="text-slate-500 text-xs font-bold uppercase mb-2">إجمالي المرضى</p>
+                    <h3 id="stat-patients" class="text-4xl font-black">0</h3>
+                </div>
+                <div class="bg-[#0f172a] p-8 rounded-3xl border border-slate-800 border-r-4 border-blue-600">
+                    <p class="text-slate-500 text-xs font-bold uppercase mb-2">الأقسام الطبية</p>
+                    <h3 id="stat-depts" class="text-4xl font-black text-blue-500">0</h3>
+                </div>
+                <div class="bg-[#0f172a] p-8 rounded-3xl border border-slate-800 border-r-4 border-emerald-600">
+                    <p class="text-slate-500 text-xs font-bold uppercase mb-2">الوصفات</p>
+                    <h3 id="stat-rx" class="text-4xl font-black text-emerald-500">0</h3>
+                </div>
+                <div class="bg-[#0f172a] p-8 rounded-3xl border border-slate-800 border-r-4 border-purple-600">
+                    <p class="text-slate-500 text-xs font-bold uppercase mb-2">مواعيد اليوم</p>
+                    <h3 id="stat-appts" class="text-4xl font-black text-purple-500">0</h3>
+                </div>
+            </section>
+
+            <!-- Patients View -->
+            <section id="view-patients" class="view-content hidden space-y-6">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-2xl font-black">سجل المرضى</h3>
+                    <button onclick="openModal('patientModal')" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-2xl font-black shadow-lg">إضافة مريض</button>
+                </div>
+                <div class="bg-[#0f172a] rounded-3xl border border-slate-800 overflow-hidden">
+                    <table class="w-full text-right">
+                        <thead>
+                            <tr class="bg-slate-900/50 text-slate-500 text-xs font-black uppercase">
+                                <th class="p-5">الاسم</th>
+                                <th class="p-5">الجوال</th>
+                                <th class="p-5">الفصيلة</th>
+                                <th class="p-5 text-center">إجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody id="patients-list" class="divide-y divide-slate-800"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Departments View -->
+            <section id="view-departments" class="view-content hidden space-y-8">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-2xl font-black">الأقسام الطبية</h3>
+                    <button onclick="openModal('deptModal')" class="bg-blue-600 px-6 py-3 rounded-2xl font-black">قسم جديد</button>
+                </div>
+                <div id="dept-container" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+            </section>
+
+            <!-- Other views remain similar to previous version but with dark mode consistency -->
+            <section id="view-pharmacy" class="view-content hidden space-y-6">
+                <div class="flex justify-between items-center"><h3 class="text-2xl font-black text-emerald-500">الصيدلية</h3><button onclick="openModal('rxModal')" class="bg-emerald-600 px-6 py-3 rounded-2xl font-black">إصدار وصفة</button></div>
+                <div id="pharmacy-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </section>
+            <section id="view-lab" class="view-content hidden space-y-6">
+                <div class="flex justify-between items-center"><h3 class="text-2xl font-black text-amber-500">المختبر</h3><button onclick="openModal('labModal')" class="bg-amber-600 px-6 py-3 rounded-2xl font-black">طلب تحليل</button></div>
+                <div id="lab-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </section>
+            <section id="view-appointments" class="view-content hidden space-y-6">
+                <div class="flex justify-between items-center"><h3 class="text-2xl font-black text-purple-500">المواعيد</h3><button onclick="openModal('apptModal')" class="bg-purple-600 px-6 py-3 rounded-2xl font-black">حجز موعد</button></div>
+                <div id="appts-container" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modals (Re-using logic from previous version but ensured consistent X button) -->
+    <div id="patientModal" class="modal-overlay fixed inset-0 z-[100] hidden items-center justify-center p-4">
+        <div class="modal-content rounded-[2.5rem] w-full max-w-lg p-10 relative">
+            <button onclick="closeModal('patientModal')" class="absolute top-8 left-8 text-slate-500 hover:text-red-500 text-2xl font-bold transition-colors">✕</button>
+            <h3 class="text-2xl font-black mb-8">إضافة مريض</h3>
+            <div class="space-y-4">
+                <input type="text" id="pName" placeholder="الاسم الكامل" class="w-full p-4 rounded-xl outline-none">
+                <input type="tel" id="pPhone" placeholder="رقم الجوال" class="w-full p-4 rounded-xl outline-none">
+                <select id="pBlood" class="w-full p-4 rounded-xl outline-none">
+                    <option value="">فصيلة الدم</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>O+</option><option>O-</option>
+                </select>
+                <button onclick="actions.savePatient()" class="w-full bg-blue-600 py-4 rounded-xl font-bold mt-4">حفظ</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="medicalFileModal" class="modal-overlay fixed inset-0 z-[100] hidden items-center justify-center p-4">
+        <div class="modal-content rounded-[3rem] w-full max-w-5xl h-[85vh] flex flex-col relative overflow-hidden">
+            <button onclick="closeModal('medicalFileModal')" class="absolute top-8 left-8 text-white/50 hover:text-white text-2xl font-bold z-50">✕</button>
+            <div class="bg-gradient-to-br from-blue-700 to-blue-900 p-12">
+                <h3 id="mfName" class="text-4xl font-black">اسم المريض</h3>
+                <p id="mfDetails" class="text-blue-200 mt-2"></p>
+            </div>
+            <div class="flex-1 overflow-y-auto p-10 grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-slate-900/50 p-6 rounded-3xl border border-slate-800"><h4 class="text-emerald-500 font-black mb-4">💊 سجل الأدوية</h4><div id="mfRx" class="space-y-3 text-xs"></div></div>
+                <div class="bg-slate-900/50 p-6 rounded-3xl border border-slate-800"><h4 class="text-amber-500 font-black mb-4">🧪 التحاليل</h4><div id="mfLabs" class="space-y-3 text-xs"></div></div>
+                <div class="bg-slate-900/50 p-6 rounded-3xl border border-slate-800"><h4 class="text-purple-500 font-black mb-4">📅 المواعيد</h4><div id="mfAppts" class="space-y-3 text-xs"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="deptModal" class="modal-overlay fixed inset-0 z-[100] hidden items-center justify-center p-4">
+        <div class="modal-content rounded-[2.5rem] w-full max-w-md p-10 relative">
+            <button onclick="closeModal('deptModal')" class="absolute top-8 left-8 text-slate-500 hover:text-red-500 text-2xl font-bold">✕</button>
+            <h3 class="text-2xl font-black mb-6">إنشاء قسم</h3>
+            <input type="text" id="dName" placeholder="اسم القسم" class="w-full p-4 rounded-xl mb-6 outline-none">
+            <button onclick="actions.saveDept()" class="w-full bg-blue-600 py-4 rounded-xl font-bold">تأكيد</button>
+        </div>
+    </div>
+
+    <div id="rxModal" class="modal-overlay fixed inset-0 z-[100] hidden items-center justify-center p-4">
+        <div class="modal-content rounded-3xl p-8 max-w-md w-full relative"><button onclick="closeModal('rxModal')" class="absolute top-4 left-4 text-slate-500">✕</button><h3 class="text-xl font-bold mb-4 text-emerald-500">وصفة</h3><select id="rxP" class="w-full p-3 rounded-lg mb-2"></select><textarea id="rxM" class="w-full p-3 rounded-lg mb-4 h-24" placeholder="الأدوية"></textarea><button onclick="actions.saveRx()" class="w-full bg-emerald-600 py-3 rounded-lg">إرسال</button></div>
+    </div>
+
+    <div id="labModal" class="modal-overlay fixed inset-0 z-[100] hidden items-center justify-center p-4">
+        <div class="modal-content rounded-3xl p-8 max-w-md w-full relative"><button onclick="closeModal('labModal')" class="absolute top-4 left-4 text-slate-500">✕</button><h3 class="text-xl font-bold mb-4 text-amber-500">تحليل</h3><select id="labP" class="w-full p-3 rounded-lg mb-2"></select><input id="labT" class="w-full p-3 rounded-lg mb-4" placeholder="النوع"><button onclick="actions.saveLab()" class="w-full bg-amber-600 py-3 rounded-lg">طلب</button></div>
+    </div>
+
+    <div id="apptModal" class="modal-overlay fixed inset-0 z-[100] hidden items-center justify-center p-4">
+        <div class="modal-content rounded-3xl p-8 max-w-md w-full relative"><button onclick="closeModal('apptModal')" class="absolute top-4 left-4 text-slate-500">✕</button><h3 class="text-xl font-bold mb-4 text-purple-500">موعد</h3><select id="apptP" class="w-full p-3 rounded-lg mb-2"></select><input type="datetime-local" id="apptD" class="w-full p-3 rounded-lg mb-4"><button onclick="actions.saveAppt()" class="w-full bg-purple-600 py-3 rounded-lg">حجز</button></div>
+    </div>
+
+    <div id="linkModal" class="modal-overlay fixed inset-0 z-[100] hidden items-center justify-center p-4">
+        <div class="modal-content rounded-3xl p-8 max-w-md w-full relative"><button onclick="closeModal('linkModal')" class="absolute top-4 left-4 text-slate-500">✕</button><h3 class="text-xl font-bold mb-4">إضافة مريض للقسم</h3><input type="hidden" id="targetDeptId"><select id="linkP" class="w-full p-3 rounded-lg mb-4"></select><button onclick="actions.linkPatientToDept()" class="w-full bg-blue-600 py-3 rounded-lg">إضافة</button></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, addDoc, onSnapshot, deleteDoc, updateDoc, arrayUnion, arrayRemove, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'clinical-final-v2';
+
+        let user = null;
+        let pSet = [], dSet = [], rSet = [], lSet = [], aSet = [];
+
+        async function initAuth() {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+        }
+
+        onAuthStateChanged(auth, u => {
+            user = u;
+            if (user) startSync();
+        });
+
+        function startSync() {
+            const collections = ['patients', 'depts', 'pharmacy', 'lab', 'appointments'];
+            collections.forEach(c => {
+                onSnapshot(collection(db, 'artifacts', appId, 'users', user.uid, c), snap => {
+                    const data = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                    if(c === 'patients') { pSet = data; renderPatients(); updateDropdowns(); }
+                    if(c === 'depts') { dSet = data; renderDepts(); }
+                    if(c === 'pharmacy') { rSet = data; renderPharmacy(); }
+                    if(c === 'lab') { lSet = data; renderLab(); }
+                    if(c === 'appointments') { aSet = data; renderAppts(); }
+                    updateStats();
+                });
+            });
+        }
+
+        window.toggleSidebar = () => {
+            const sb = document.getElementById('sidebar');
+            sb.classList.toggle('sidebar-expanded');
+            sb.classList.toggle('sidebar-collapsed');
+        };
+
+        window.router = {
+            navigate: id => {
+                document.querySelectorAll('.view-content').forEach(v => v.classList.add('hidden'));
+                const target = document.getElementById(`view-${id}`);
+                if(target) target.classList.remove('hidden');
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active-nav'));
+                const btn = Array.from(document.querySelectorAll('.nav-item')).find(b => b.onclick.toString().includes(id));
+                if(btn) {
+                    btn.classList.add('active-nav');
+                    document.getElementById('page-title').innerText = btn.querySelector('.nav-text').innerText;
+                }
+            }
+        };
+
+        window.openModal = id => document.getElementById(id).style.display = 'flex';
+        window.closeModal = id => document.getElementById(id).style.display = 'none';
+
+        function renderPatients() {
+            document.getElementById('patients-list').innerHTML = pSet.map(p => `
+                <tr class="hover:bg-slate-800/50 transition-colors">
+                    <td class="p-5 font-bold text-blue-400 cursor-pointer hover:underline" onclick="openMedicalFile('${p.id}')">${p.name}</td>
+                    <td class="p-5 text-slate-400 font-mono text-sm">${p.phone}</td>
+                    <td class="p-5 font-black text-red-500">${p.blood || '--'}</td>
+                    <td class="p-5 text-center">
+                        <button onclick="actions.deleteItem('patients', '${p.id}')" class="text-slate-600 hover:text-red-500">حذف 🗑</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        window.openMedicalFile = (id) => {
+            const p = pSet.find(x => x.id === id);
+            if(!p) return;
+            document.getElementById('mfName').innerText = p.name;
+            document.getElementById('mfDetails').innerText = `${p.blood || '--'} | ${p.phone}`;
+            
+            document.getElementById('mfRx').innerHTML = rSet.filter(r => r.pid === id).map(r => `
+                <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex justify-between items-center">
+                    <span>${r.meds}</span><button onclick="actions.deleteItem('pharmacy', '${r.id}')" class="text-red-500">✕</button>
+                </div>
+            `).join('') || 'لا يوجد';
+            
+            document.getElementById('mfLabs').innerHTML = lSet.filter(l => l.pid === id).map(l => `
+                <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex justify-between items-center">
+                    <span>${l.test}</span><button onclick="actions.deleteItem('lab', '${l.id}')" class="text-red-500">✕</button>
+                </div>
+            `).join('') || 'لا يوجد';
+            
+            document.getElementById('mfAppts').innerHTML = aSet.filter(a => a.pid === id).map(a => `
+                <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex justify-between items-center">
+                    <span>${new Date(a.date).toLocaleDateString('ar-EG')}</span><button onclick="actions.deleteItem('appointments', '${a.id}')" class="text-red-500">✕</button>
+                </div>
+            `).join('') || 'لا يوجد';
+
+            openModal('medicalFileModal');
+        };
+
+        function renderDepts() {
+            document.getElementById('dept-container').innerHTML = dSet.map(d => `
+                <div class="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 relative group">
+                    <button onclick="actions.deleteItem('depts', '${d.id}')" class="absolute top-5 left-5 text-slate-700 hover:text-red-500">🗑</button>
+                    <h4 class="text-xl font-black mb-6 text-blue-500">${d.name}</h4>
+                    <div class="space-y-2 mb-6">
+                        ${(d.pList || []).map(pid => {
+                            const p = pSet.find(x => x.id === pid);
+                            return p ? `<div class="flex justify-between items-center bg-slate-800 p-2 rounded-xl text-[10px] font-bold">
+                                <span>${p.name}</span><button onclick="actions.unlink('${d.id}', '${pid}')" class="text-red-400 text-lg leading-none">×</button>
+                            </div>` : '';
+                        }).join('')}
+                    </div>
+                    <button onclick="openLinkModal('${d.id}')" class="w-full py-3 bg-slate-800 border border-slate-700 text-blue-400 rounded-2xl text-[10px] font-bold hover:bg-slate-700">+ إضافة مريض</button>
+                </div>
+            `).join('');
+        }
+
+        function renderPharmacy() { document.getElementById('pharmacy-container').innerHTML = rSet.map(r => `<div class="bg-[#0f172a] p-4 rounded-xl border-r-4 border-emerald-500 flex justify-between"><div><p class="text-[10px] text-emerald-500 font-bold">${r.pName}</p><p class="text-sm">${r.meds}</p></div><button onclick="actions.deleteItem('pharmacy', '${r.id}')" class="text-slate-700 hover:text-red-500">🗑</button></div>`).join(''); }
+        function renderLab() { document.getElementById('lab-container').innerHTML = lSet.map(l => `<div class="bg-[#0f172a] p-4 rounded-xl border-r-4 border-amber-500 flex justify-between"><div><p class="text-[10px] text-amber-500 font-bold">${l.pName}</p><p class="text-sm font-bold">${l.test}</p></div><button onclick="actions.deleteItem('lab', '${l.id}')" class="text-slate-700 hover:text-red-500">🗑</button></div>`).join(''); }
+        function renderAppts() { document.getElementById('appts-container').innerHTML = aSet.map(a => `<div class="bg-[#0f172a] p-4 rounded-xl border-r-4 border-purple-500 flex justify-between"><div><p class="text-[10px] text-purple-500 font-bold">${a.pName}</p><p class="text-xs font-mono">${new Date(a.date).toLocaleDateString('ar-EG')}</p></div><button onclick="actions.deleteItem('appointments', '${a.id}')" class="text-slate-700 hover:text-red-500">🗑</button></div>`).join(''); }
+
+        window.openLinkModal = (did) => { document.getElementById('targetDeptId').value = did; openModal('linkModal'); };
+
+        function updateDropdowns() {
+            const html = '<option value="">اختر مريضاً...</option>' + pSet.map(p => `<option value="${p.id}" data-name="${p.name}">${p.name}</option>`).join('');
+            ['rxP', 'labP', 'apptP', 'linkP'].forEach(id => { if(document.getElementById(id)) document.getElementById(id).innerHTML = html; });
+        }
+
+        function updateStats() {
+            document.getElementById('stat-patients').innerText = pSet.length;
+            document.getElementById('stat-depts').innerText = dSet.length;
+            document.getElementById('stat-rx').innerText = rSet.length;
+            document.getElementById('stat-appts').innerText = aSet.length;
+        }
+
+        window.actions = {
+            savePatient: async () => {
+                const name = document.getElementById('pName').value, phone = document.getElementById('pPhone').value, blood = document.getElementById('pBlood').value;
+                if(!name || !phone) return;
+                await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'patients'), { name, phone, blood });
+                closeModal('patientModal');
+                document.getElementById('pName').value = ''; document.getElementById('pPhone').value = '';
+            },
+            saveDept: async () => {
+                const name = document.getElementById('dName').value;
+                if(!name) return;
+                await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'depts'), { name, pList: [] });
+                closeModal('deptModal');
+                document.getElementById('dName').value = '';
+            },
+            saveRx: async () => {
+                const sel = document.getElementById('rxP'), meds = document.getElementById('rxM').value;
+                if(!sel.value || !meds) return;
+                await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'pharmacy'), { pid: sel.value, pName: sel.options[sel.selectedIndex].dataset.name, meds });
+                closeModal('rxModal');
+            },
+            saveLab: async () => {
+                const sel = document.getElementById('labP'), test = document.getElementById('labT').value;
+                if(!sel.value || !test) return;
+                await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'lab'), { pid: sel.value, pName: sel.options[sel.selectedIndex].dataset.name, test });
+                closeModal('labModal');
+            },
+            saveAppt: async () => {
+                const sel = document.getElementById('apptP'), date = document.getElementById('apptD').value;
+                if(!sel.value || !date) return;
+                await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'appointments'), { pid: sel.value, pName: sel.options[sel.selectedIndex].dataset.name, date });
+                closeModal('apptModal');
+            },
+            linkPatientToDept: async () => {
+                const did = document.getElementById('targetDeptId').value, pid = document.getElementById('linkP').value;
+                if(!pid) return;
+                await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'depts', did), { pList: arrayUnion(pid) });
+                closeModal('linkModal');
+            },
+            unlink: async (did, pid) => {
+                await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'depts', did), { pList: arrayRemove(pid) });
+            },
+            deleteItem: async (col, id) => {
+                if(confirm("هل أنت متأكد من الحذف؟")) {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, col, id));
+                    if(col === 'patients') closeModal('medicalFileModal');
+                }
+            }
+        };
+
+        window.onload = initAuth;
     </script>
 </body>
 </html>
+
+```
